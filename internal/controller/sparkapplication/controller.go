@@ -1285,7 +1285,6 @@ func (r *Reconciler) deleteDriverPod(ctx context.Context, app *v1beta2.SparkAppl
 }
 
 func (r *Reconciler) deleteWebUIService(ctx context.Context, app *v1beta2.SparkApplication) error {
-	logger := log.FromContext(ctx)
 	svcName := app.Status.DriverInfo.WebUIServiceName
 	if svcName == "" {
 		// Fall back to the derived name when the status field was never persisted
@@ -1296,26 +1295,31 @@ func (r *Reconciler) deleteWebUIService(ctx context.Context, app *v1beta2.SparkA
 		}
 		svcName = util.GetDefaultUIServiceName(app)
 	}
+
+	// Use the cache as the existence check: if the service is not found (already
+	// deleted or never created) return early with no API call.  Also skip deletion
+	// when the service is not owned by this app to avoid removing a service the
+	// user created with a coincidentally matching name.
+	svc := &corev1.Service{}
+	if err := r.client.Get(ctx, types.NamespacedName{Name: svcName, Namespace: app.Namespace}, svc); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to get Spark UI service %s: %v", svcName, err)
+	}
+	if !metav1.IsControlledBy(svc, app) {
+		return nil
+	}
+
+	logger := log.FromContext(ctx)
 	logger.Info("Deleting Spark web UI service", "service", svcName)
-	if err := r.client.Delete(
-		ctx,
-		&corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      svcName,
-				Namespace: app.Namespace,
-			},
-		},
-		&client.DeleteOptions{
-			GracePeriodSeconds: ptr.To[int64](0),
-		},
-	); err != nil && !errors.IsNotFound(err) {
-		return err
+	if err := r.client.Delete(ctx, svc, &client.DeleteOptions{GracePeriodSeconds: ptr.To[int64](0)}); err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to delete Spark UI service %s: %v", svcName, err)
 	}
 	return nil
 }
 
 func (r *Reconciler) deleteWebUIIngress(ctx context.Context, app *v1beta2.SparkApplication) error {
-	logger := log.FromContext(ctx)
 	ingressName := app.Status.DriverInfo.WebUIIngressName
 	if ingressName == "" {
 		// Fall back to the derived name when the status field was never persisted.
@@ -1327,21 +1331,19 @@ func (r *Reconciler) deleteWebUIIngress(ctx context.Context, app *v1beta2.SparkA
 		ingressName = util.GetDefaultUIIngressName(app)
 	}
 
+	logger := log.FromContext(ctx)
+
 	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
-		logger.Info("Deleting Spark web UI ingress", "ingress", ingressName)
-		if err := r.client.Delete(
-			ctx,
-			&networkingv1.Ingress{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      ingressName,
-					Namespace: app.Namespace,
-				},
-			},
-			&client.DeleteOptions{
-				GracePeriodSeconds: ptr.To[int64](0),
-			},
-		); err != nil && !errors.IsNotFound(err) {
-			return err
+		ingress := &networkingv1.Ingress{}
+		if err := r.client.Get(ctx, types.NamespacedName{Name: ingressName, Namespace: app.Namespace}, ingress); err != nil {
+			if !errors.IsNotFound(err) {
+				return fmt.Errorf("failed to get Spark UI ingress %s: %v", ingressName, err)
+			}
+		} else if metav1.IsControlledBy(ingress, app) {
+			logger.Info("Deleting Spark web UI ingress", "ingress", ingressName)
+			if err := r.client.Delete(ctx, ingress, &client.DeleteOptions{GracePeriodSeconds: ptr.To[int64](0)}); err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("failed to delete Spark UI ingress %s: %v", ingressName, err)
+			}
 		}
 	}
 
@@ -1604,13 +1606,14 @@ func (r *Reconciler) cleanUpOnTermination(ctx context.Context, _, newApp *v1beta
 	if err := r.deleteDriverPDB(ctx, newApp); err != nil {
 		return err
 	}
-	// Delete the web UI service and ingress so they do not accumulate for
-	// completed or failed apps that are never retried and have no TTL set.
-	// Both deletes are idempotent (NotFound is ignored).
-	if err := r.deleteWebUIService(ctx, newApp); err != nil {
+	// Delete the web UI ingress before the service so that a failed ingress
+	// delete leaves the service in place and the next reconcile retries it.
+	// Both deletes check the cache before issuing an API call, so they are
+	// no-ops for apps whose resources are already gone.
+	if err := r.deleteWebUIIngress(ctx, newApp); err != nil {
 		return err
 	}
-	if err := r.deleteWebUIIngress(ctx, newApp); err != nil {
+	if err := r.deleteWebUIService(ctx, newApp); err != nil {
 		return err
 	}
 	return nil

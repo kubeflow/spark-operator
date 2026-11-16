@@ -1868,6 +1868,28 @@ var _ = Describe("SparkApplication Controller", func() {
 			}
 		}
 
+		newOwnedUIService := func(svcName string, owner *v1beta2.SparkApplication) *corev1.Service {
+			return &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            svcName,
+					Namespace:       appNamespace,
+					OwnerReferences: []metav1.OwnerReference{util.GetOwnerReference(owner)},
+				},
+				Spec: corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 4040}}},
+			}
+		}
+
+		newOwnedIngress := func(name string, owner *v1beta2.SparkApplication) *networkingv1.Ingress {
+			return &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            name,
+					Namespace:       appNamespace,
+					OwnerReferences: []metav1.OwnerReference{util.GetOwnerReference(owner)},
+				},
+				Spec: networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "test.example.com"}}},
+			}
+		}
+
 		newReconcilerWithUI := func() *sparkapplication.Reconciler {
 			return sparkapplication.NewReconciler(
 				nil, k8sClient.Scheme(), k8sClient,
@@ -1882,7 +1904,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			app, key := createTerminalApp(appName, v1beta2.ApplicationStateCompleted, svcName)
 			defer func() { _ = k8sClient.Delete(ctx, app) }()
 
-			svc := newUIService(svcName)
+			svc := newOwnedUIService(svcName, app)
 			Expect(k8sClient.Create(ctx, svc)).To(Succeed())
 			defer func() { _ = k8sClient.Delete(ctx, svc) }()
 
@@ -1901,7 +1923,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			app, key := createTerminalApp(appName, v1beta2.ApplicationStateFailed, svcName)
 			defer func() { _ = k8sClient.Delete(ctx, app) }()
 
-			svc := newUIService(svcName)
+			svc := newOwnedUIService(svcName, app)
 			Expect(k8sClient.Create(ctx, svc)).To(Succeed())
 			defer func() { _ = k8sClient.Delete(ctx, svc) }()
 
@@ -1937,7 +1959,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			app, key := createTerminalApp(appName, v1beta2.ApplicationStateCompleted, "")
 			defer func() { _ = k8sClient.Delete(ctx, app) }()
 
-			svc := newUIService(derivedSvcName)
+			svc := newOwnedUIService(derivedSvcName, app)
 			Expect(k8sClient.Create(ctx, svc)).To(Succeed())
 			defer func() { _ = k8sClient.Delete(ctx, svc) }()
 
@@ -1948,6 +1970,26 @@ var _ = Describe("SparkApplication Controller", func() {
 			By("Checking that the UI service was deleted via the derived name")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: derivedSvcName, Namespace: appNamespace}, &corev1.Service{})).
 				To(Satisfy(errors.IsNotFound))
+		})
+
+		It("Should not delete UI service not owned by this SparkApplication", func() {
+			appName := "test-ui-not-owned"
+			svcName := util.GetDefaultUIServiceName(&v1beta2.SparkApplication{ObjectMeta: metav1.ObjectMeta{Name: appName}})
+			app, key := createTerminalApp(appName, v1beta2.ApplicationStateCompleted, svcName)
+			defer func() { _ = k8sClient.Delete(ctx, app) }()
+
+			// Service with matching name but no owner reference — must not be deleted.
+			svc := newUIService(svcName)
+			Expect(k8sClient.Create(ctx, svc)).To(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, svc) }()
+
+			By("Reconciling the completed SparkApplication")
+			_, err := newReconcilerWithUI().Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking that the unowned service was not deleted")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: svcName, Namespace: appNamespace}, &corev1.Service{})).
+				To(Succeed())
 		})
 
 		It("Should not attempt UI service deletion when EnableUIService is false and name is empty", func() {
@@ -1987,10 +2029,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			app, key := createTerminalApp(appName, v1beta2.ApplicationStateFailed, "")
 			defer func() { _ = k8sClient.Delete(ctx, app) }()
 
-			ingress := &networkingv1.Ingress{
-				ObjectMeta: metav1.ObjectMeta{Name: derivedIngressName, Namespace: appNamespace},
-				Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "test.example.com"}}},
-			}
+			ingress := newOwnedIngress(derivedIngressName, app)
 			Expect(k8sClient.Create(ctx, ingress)).To(Succeed())
 			defer func() { _ = k8sClient.Delete(ctx, ingress) }()
 
@@ -2023,10 +2062,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			app, key := createTerminalApp(appName, v1beta2.ApplicationStateCompleted, "")
 			defer func() { _ = k8sClient.Delete(ctx, app) }()
 
-			ingress := &networkingv1.Ingress{
-				ObjectMeta: metav1.ObjectMeta{Name: derivedIngressName, Namespace: appNamespace},
-				Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "test.example.com"}}},
-			}
+			ingress := newOwnedIngress(derivedIngressName, app)
 			Expect(k8sClient.Create(ctx, ingress)).To(Succeed())
 			defer func() { _ = k8sClient.Delete(ctx, ingress) }()
 
@@ -2046,6 +2082,42 @@ var _ = Describe("SparkApplication Controller", func() {
 			By("Checking that the UI ingress was deleted via the derived name")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: derivedIngressName, Namespace: appNamespace}, &networkingv1.Ingress{})).
 				To(Satisfy(errors.IsNotFound))
+		})
+
+		It("Should not delete UI ingress not owned by this SparkApplication", func() {
+			origCaps := util.IngressCapabilities
+			defer func() { util.IngressCapabilities = origCaps }()
+			util.IngressCapabilities = util.Capabilities{"networking.k8s.io/v1": true}
+
+			appName := "test-ui-ingress-not-owned"
+			derivedIngressName := util.GetDefaultUIIngressName(&v1beta2.SparkApplication{ObjectMeta: metav1.ObjectMeta{Name: appName}})
+			app, key := createTerminalApp(appName, v1beta2.ApplicationStateCompleted, "")
+			defer func() { _ = k8sClient.Delete(ctx, app) }()
+
+			// Ingress with matching name but no owner reference — must not be deleted.
+			ingress := &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{Name: derivedIngressName, Namespace: appNamespace},
+				Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "test.example.com"}}},
+			}
+			Expect(k8sClient.Create(ctx, ingress)).To(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, ingress) }()
+
+			By("Reconciling with IngressURLFormat set")
+			reconciler := sparkapplication.NewReconciler(
+				nil, k8sClient.Scheme(), k8sClient,
+				events.NewFakeRecorder(3), nil, &sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{
+					Namespaces:       []string{appNamespace},
+					EnableUIService:  true,
+					IngressURLFormat: "{{$appName}}.spark.test.com",
+				},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking that the unowned ingress was not deleted")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: derivedIngressName, Namespace: appNamespace}, &networkingv1.Ingress{})).
+				To(Succeed())
 		})
 	})
 })
