@@ -570,7 +570,7 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 			app := old.DeepCopy()
 
 			// The executors of the previous run are being deleted; their counts follow them.
-			if err := r.updateExecutorCounts(ctx, app); err != nil {
+			if err := r.refreshExecutorCounts(ctx, app); err != nil {
 				return err
 			}
 
@@ -754,11 +754,7 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.updateExecutorState(ctx, app); err != nil {
-		return ctrl.Result{Requeue: true}, err
-	}
-
-	if err := r.updateExecutorCounts(ctx, app); err != nil {
+	if err := r.updateExecutorStateAndCounts(ctx, app); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
 
@@ -876,7 +872,7 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 			app := old.DeepCopy()
 
 			// The executors are being deleted; their counts follow them.
-			if err := r.updateExecutorCounts(ctx, app); err != nil {
+			if err := r.refreshExecutorCounts(ctx, app); err != nil {
 				return err
 			}
 
@@ -1128,15 +1124,10 @@ func (r *Reconciler) updateDriverState(ctx context.Context, app *v1beta2.SparkAp
 	return nil
 }
 
-// updateExecutorState lists the executor pods of the application
-// and updates the executor state based on the current phase of the pods.
-func (r *Reconciler) updateExecutorState(ctx context.Context, app *v1beta2.SparkApplication) error {
+// updateExecutorState updates the executor state of the application based on the current phase
+// of its executor pods.
+func (r *Reconciler) updateExecutorState(ctx context.Context, app *v1beta2.SparkApplication, pods []corev1.Pod) {
 	logger := log.FromContext(ctx)
-	podList, err := r.getExecutorPods(ctx, app)
-	if err != nil {
-		return err
-	}
-	pods := podList.Items
 
 	executorStateMap := make(map[string]v1beta2.ExecutorState)
 	var executorApplicationID string
@@ -1204,8 +1195,6 @@ func (r *Reconciler) updateExecutorState(ctx context.Context, app *v1beta2.Spark
 			}
 		}
 	}
-
-	return nil
 }
 
 func (r *Reconciler) getExecutorPods(ctx context.Context, app *v1beta2.SparkApplication) (*corev1.PodList, error) {
@@ -1239,11 +1228,7 @@ func (r *Reconciler) updateSparkApplicationState(ctx context.Context, app *v1bet
 		return err
 	}
 
-	if err := r.updateExecutorState(ctx, app); err != nil {
-		return err
-	}
-
-	if err := r.updateExecutorCounts(ctx, app); err != nil {
+	if err := r.updateExecutorStateAndCounts(ctx, app); err != nil {
 		return err
 	}
 
@@ -1252,14 +1237,10 @@ func (r *Reconciler) updateSparkApplicationState(ctx context.Context, app *v1bet
 
 // updateExecutorCounts counts the executor pods of the current submission in status.executors,
 // from the pods rather than from ExecutorState. Counts of another submission are started over.
-func (r *Reconciler) updateExecutorCounts(ctx context.Context, app *v1beta2.SparkApplication) error {
-	podList, err := r.getExecutorPods(ctx, app)
-	if err != nil {
-		return err
-	}
+func updateExecutorCounts(app *v1beta2.SparkApplication, pods []corev1.Pod) {
 	counts := v1beta2.ExecutorStatus{SubmissionID: app.Status.SubmissionID}
-	for i := range podList.Items {
-		pod := &podList.Items[i]
+	for i := range pods {
+		pod := &pods[i]
 		if !util.IsExecutorPod(pod) {
 			continue
 		}
@@ -1286,9 +1267,31 @@ func (r *Reconciler) updateExecutorCounts(ctx context.Context, app *v1beta2.Spar
 	case counts.Active == 0 && counts.Terminating == 0 && counts.MaxExecutorID == 0:
 		// Left unset until an executor pod of the submission is observed.
 		app.Status.Executors = nil
-		return nil
+		return
 	}
 	app.Status.Executors = &counts
+}
+
+// updateExecutorStateAndCounts lists the executor pods of the application once, and updates both
+// its executor state and status.executors from them, so the two agree within a status write.
+func (r *Reconciler) updateExecutorStateAndCounts(ctx context.Context, app *v1beta2.SparkApplication) error {
+	podList, err := r.getExecutorPods(ctx, app)
+	if err != nil {
+		return err
+	}
+	r.updateExecutorState(ctx, app, podList.Items)
+	updateExecutorCounts(app, podList.Items)
+	return nil
+}
+
+// refreshExecutorCounts lists the executor pods of the application and updates status.executors
+// from them.
+func (r *Reconciler) refreshExecutorCounts(ctx context.Context, app *v1beta2.SparkApplication) error {
+	podList, err := r.getExecutorPods(ctx, app)
+	if err != nil {
+		return err
+	}
+	updateExecutorCounts(app, podList.Items)
 	return nil
 }
 

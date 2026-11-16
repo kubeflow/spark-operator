@@ -79,7 +79,7 @@ func (h *SparkPodEventHandler) Update(ctx context.Context, event event.UpdateEve
 		return
 	}
 
-	if newPod.Status.Phase == oldPod.Status.Phase {
+	if newPod.Status.Phase == oldPod.Status.Phase && !executorCountsMayChange(oldPod, newPod) {
 		return
 	}
 

@@ -106,7 +106,7 @@ func TestUpdateExecutorCountsCountsActiveTerminatingAndReadyExecutors(t *testing
 	)
 	app := runningApp("app")
 
-	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
+	require.NoError(t, r.refreshExecutorCounts(context.Background(), app))
 
 	assert.Equal(t, &v1beta2.ExecutorStatus{
 		SubmissionID:  executorCountSubmissionID,
@@ -127,8 +127,7 @@ func TestUpdateExecutorCountsDoesNotDependOnExecutorState(t *testing.T) {
 	)
 	app := runningApp("app")
 
-	require.NoError(t, r.updateExecutorState(context.Background(), app))
-	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
+	require.NoError(t, r.updateExecutorStateAndCounts(context.Background(), app))
 
 	assert.Len(t, app.Status.ExecutorState, 1)
 	assert.Equal(t, &v1beta2.ExecutorStatus{
@@ -143,7 +142,7 @@ func TestUpdateExecutorCountsLeavesThemUnsetWithoutExecutors(t *testing.T) {
 	r := newExecutorCountReconciler(t, 1000)
 	app := runningApp("app")
 
-	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
+	require.NoError(t, r.refreshExecutorCounts(context.Background(), app))
 
 	assert.Nil(t, app.Status.Executors)
 }
@@ -153,7 +152,7 @@ func TestUpdateExecutorCountsDropToZeroAndKeepTheHighestExecutorID(t *testing.T)
 	app := runningApp("app")
 	app.Status.Executors = &v1beta2.ExecutorStatus{SubmissionID: executorCountSubmissionID, Active: 5, Ready: 4, MaxExecutorID: 7}
 
-	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
+	require.NoError(t, r.refreshExecutorCounts(context.Background(), app))
 	assert.Equal(t, &v1beta2.ExecutorStatus{
 		SubmissionID:  executorCountSubmissionID,
 		Active:        1,
@@ -163,7 +162,7 @@ func TestUpdateExecutorCountsDropToZeroAndKeepTheHighestExecutorID(t *testing.T)
 
 	// Once every executor is gone, the counts drop to zero, while the highest executor ID is kept
 	r = newExecutorCountReconciler(t, 1000)
-	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
+	require.NoError(t, r.refreshExecutorCounts(context.Background(), app))
 	assert.Equal(t, &v1beta2.ExecutorStatus{SubmissionID: executorCountSubmissionID, MaxExecutorID: 7}, app.Status.Executors)
 }
 
@@ -174,7 +173,7 @@ func TestUpdateExecutorCountsStartOverForANewSubmission(t *testing.T) {
 	r := newExecutorCountReconciler(t, 1000, readyExecutorPod("app", 1))
 	app := runningApp("app")
 	app.Status.Executors = previous.DeepCopy()
-	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
+	require.NoError(t, r.refreshExecutorCounts(context.Background(), app))
 	assert.Equal(t, &v1beta2.ExecutorStatus{
 		SubmissionID:  executorCountSubmissionID,
 		Active:        1,
@@ -186,7 +185,7 @@ func TestUpdateExecutorCountsStartOverForANewSubmission(t *testing.T) {
 	r = newExecutorCountReconciler(t, 1000)
 	app = runningApp("app")
 	app.Status.Executors = previous.DeepCopy()
-	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
+	require.NoError(t, r.refreshExecutorCounts(context.Background(), app))
 	assert.Nil(t, app.Status.Executors)
 }
 
@@ -213,17 +212,30 @@ func newDeletingExecutorReconciler(t *testing.T, app *v1beta2.SparkApplication) 
 func TestExecutorCountsFollowTheExecutorsWhileTheyAreReleased(t *testing.T) {
 	for name, tc := range map[string]struct {
 		state     v1beta2.ApplicationStateType
+		suspend   bool
 		reconcile func(*Reconciler, context.Context, ctrl.Request) (ctrl.Result, error)
+		// deleteDriver also deletes the driver pod in the second step, so the reconciler sees every
+		// resource of the application gone and resets its status.
+		deleteDriver bool
 	}{
-		"suspended":     {state: v1beta2.ApplicationStateSuspended, reconcile: (*Reconciler).reconcileSuspendedSparkApplication},
-		"pending rerun": {state: v1beta2.ApplicationStatePendingRerun, reconcile: (*Reconciler).reconcilePendingRerunSparkApplication},
+		"suspended": {
+			state: v1beta2.ApplicationStateSuspended, suspend: true, deleteDriver: true,
+			reconcile: (*Reconciler).reconcileSuspendedSparkApplication,
+		},
+		"pending rerun": {
+			state:     v1beta2.ApplicationStatePendingRerun,
+			reconcile: (*Reconciler).reconcilePendingRerunSparkApplication,
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			ctx := context.Background()
 			app := runningApp("app")
-			app.Spec.Suspend = ptr.To(true)
+			if tc.suspend {
+				app.Spec.Suspend = ptr.To(true)
+			}
 			app.Status.AppState.State = tc.state
 			app.Status.DriverInfo.PodName = "app-driver"
+			app.Status.ExecutorState = map[string]v1beta2.ExecutorState{"app-exec-2": v1beta2.ExecutorStateRunning}
 			app.Status.Executors = &v1beta2.ExecutorStatus{SubmissionID: executorCountSubmissionID, Active: 3, Ready: 3, MaxExecutorID: 3}
 			r, c, executor := newDeletingExecutorReconciler(t, app)
 			req := ctrl.Request{NamespacedName: client.ObjectKeyFromObject(app)}
@@ -242,11 +254,20 @@ func TestExecutorCountsFollowTheExecutorsWhileTheyAreReleased(t *testing.T) {
 			require.NoError(t, c.Get(ctx, client.ObjectKeyFromObject(executor), executor))
 			executor.Finalizers = nil
 			require.NoError(t, c.Update(ctx, executor))
+			if tc.deleteDriver {
+				require.NoError(t, c.Delete(ctx, &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "app-driver", Namespace: app.Namespace}}))
+			}
 			_, err = tc.reconcile(r, ctx, req)
 			require.NoError(t, err)
 			require.NoError(t, c.Get(ctx, req.NamespacedName, got))
 			assert.Equal(t, &v1beta2.ExecutorStatus{SubmissionID: executorCountSubmissionID, MaxExecutorID: 3}, got.Status.Executors,
 				"counts once the executor is gone")
+			if tc.deleteDriver {
+				// The reset clears executorState but keeps status.executors: its submission ID tells
+				// a consumer which submission the counts belong to.
+				assert.Nil(t, got.Status.ExecutorState, "executorState after the reset")
+				assert.Equal(t, v1beta2.ApplicationStateSuspended, got.Status.AppState.State, "still suspended")
+			}
 		})
 	}
 }

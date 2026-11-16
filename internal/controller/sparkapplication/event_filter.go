@@ -81,11 +81,21 @@ func (f *sparkPodEventFilter) Update(e event.UpdateEvent) bool {
 		return false
 	}
 
-	if newPod.Status.Phase == oldPod.Status.Phase {
+	if newPod.Status.Phase == oldPod.Status.Phase && !executorCountsMayChange(oldPod, newPod) {
 		return false
 	}
 
 	return f.filter(newPod)
+}
+
+// executorCountsMayChange reports whether an update of an executor pod that keeps its phase can
+// still change status.executors: it became ready or not ready, or started being deleted.
+func executorCountsMayChange(oldPod, newPod *corev1.Pod) bool {
+	if !util.IsExecutorPod(newPod) {
+		return false
+	}
+	return util.IsPodReady(oldPod) != util.IsPodReady(newPod) ||
+		(oldPod.DeletionTimestamp == nil) != (newPod.DeletionTimestamp == nil)
 }
 
 // Delete implements predicate.Predicate.
