@@ -99,6 +99,7 @@ spec:
             - --workqueue-ratelimiter-max-delay=6h
             - --driver-pod-creation-grace-period=10s
             - --max-tracked-executor-per-app=1000
+            - --enable-executor-counts=true
             - --kube-api-qps=20
             - --kube-api-burst=30
             - --feature-gates=PartialRestart=false,LoadSparkDefaults=false,RestSubmitter=false,DefaultTimeToLive=false
