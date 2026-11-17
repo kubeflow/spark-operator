@@ -241,6 +241,9 @@ spec:
       {{- with .Values.controller.priorityClassName }}
       priorityClassName: {{ . }}
       {{- end }}
+      {{- with .Values.controller.schedulerName }}
+      schedulerName: {{ . }}
+      {{- end }}
       serviceAccountName: {{ include "spark-operator.controller.serviceAccountName" . }}
       automountServiceAccountToken: {{ .Values.controller.serviceAccount.automountServiceAccountToken }}
       {{- with .Values.controller.podSecurityContext }}

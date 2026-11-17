@@ -557,6 +557,15 @@ tests:
           path: spec.template.spec.priorityClassName
           value: test-priority-class
 
+  - it: Should add schedulerName if `webhook.schedulerName` is set
+    set:
+      webhook:
+        schedulerName: test-scheduler
+    asserts:
+      - equal:
+          path: spec.template.spec.schedulerName
+          value: test-scheduler
+
   - it: Should add pod securityContext if `webhook.podSecurityContext` is set
     set:
       webhook:
