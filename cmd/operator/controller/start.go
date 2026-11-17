@@ -227,8 +227,8 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().DurationVar(&cacheSyncTimeout, "cache-sync-timeout", 30*time.Second, "Informer cache sync timeout.")
 	command.Flags().IntVar(&maxTrackedExecutorPerApp, "max-tracked-executor-per-app", 1000, "The maximum number of tracked executors per SparkApplication.")
 	command.Flags().BoolVar(&enableExecutorCounts, "enable-executor-counts", true,
-		"Record the executor counts of each SparkApplication in status.executors. Disabling it leaves "+
-			"status.executors unset and saves the status writes that executor readiness and deletion cause.")
+		"Record the executor counts of each SparkApplication in status.executors. Set it to false to "+
+			"not record them, which leaves status.executors unset.")
 	command.Flags().Int64Var(&defaultTimeToLiveSeconds, "default-time-to-live-seconds", 0,
 		"Default Time-To-Live in seconds applied to terminated SparkApplications that do "+
 			"not set spec.timeToLiveSeconds. Requires the DefaultTimeToLive feature gate. "+

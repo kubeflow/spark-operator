@@ -136,7 +136,7 @@ controller:
 
   executorCounts:
     # -- Record the executor counts of each SparkApplication in `status.executors`.
-    # Disabling it leaves `status.executors` unset and saves the status writes that executor readiness and deletion cause.
+    # Set it to `false` to not record them, which leaves `status.executors` unset.
     enable: true
 
   # -- Default Time-To-Live (in seconds) applied to terminated SparkApplications that do not
