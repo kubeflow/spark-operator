@@ -71,7 +71,7 @@ func newExecutorCountReconciler(t *testing.T, maxTracked int, pods ...*corev1.Po
 	return &Reconciler{
 		client:   fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build(),
 		recorder: events.NewFakeRecorder(100),
-		options:  Options{MaxTrackedExecutorPerApp: maxTracked},
+		options:  Options{MaxTrackedExecutorPerApp: maxTracked, EnableExecutorCounts: true},
 	}
 }
 
@@ -147,6 +147,23 @@ func TestUpdateExecutorCountsLeavesThemUnsetWithoutExecutors(t *testing.T) {
 	assert.Nil(t, app.Status.Executors)
 }
 
+func TestExecutorCountsDisabled(t *testing.T) {
+	// With the counts disabled, status.executors is left unset, and counts recorded before they were
+	// disabled are cleared, so that they do not look current to a consumer.
+	r := newExecutorCountReconciler(t, 1000, readyExecutorPod("app", 1), readyExecutorPod("app", 2))
+	r.options.EnableExecutorCounts = false
+	app := runningApp("app")
+	app.Status.Executors = &v1beta2.ExecutorStatus{SubmissionID: executorCountSubmissionID, Active: 5, Ready: 4, MaxExecutorID: 7}
+
+	require.NoError(t, r.updateExecutorStateAndCounts(context.Background(), app))
+	assert.Nil(t, app.Status.Executors, "after updateExecutorStateAndCounts")
+	assert.Len(t, app.Status.ExecutorState, 2, "executorState is still recorded")
+
+	app.Status.Executors = &v1beta2.ExecutorStatus{SubmissionID: executorCountSubmissionID, Active: 5}
+	require.NoError(t, r.refreshExecutorCounts(context.Background(), app))
+	assert.Nil(t, app.Status.Executors, "after refreshExecutorCounts")
+}
+
 func TestUpdateExecutorCountsDropToZeroAndKeepTheHighestExecutorID(t *testing.T) {
 	r := newExecutorCountReconciler(t, 1000, readyExecutorPod("app", 2))
 	app := runningApp("app")
@@ -205,7 +222,7 @@ func newDeletingExecutorReconciler(t *testing.T, app *v1beta2.SparkApplication) 
 		WithObjects(app, driver, executor).
 		Build()
 	require.NoError(t, c.Delete(context.Background(), executor))
-	r := &Reconciler{client: c, recorder: events.NewFakeRecorder(100), options: Options{MaxTrackedExecutorPerApp: 1000}}
+	r := &Reconciler{client: c, recorder: events.NewFakeRecorder(100), options: Options{MaxTrackedExecutorPerApp: 1000, EnableExecutorCounts: true}}
 	return r, c, executor
 }
 

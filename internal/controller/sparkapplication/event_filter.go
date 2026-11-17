@@ -40,6 +40,9 @@ type sparkPodEventFilter struct {
 	client           client.Client
 	namespaceMatcher *util.NamespaceMatcher
 	logger           logr.Logger
+	// executorCounts passes executor pod updates that keep their phase but can change
+	// status.executors (see executorCountsMayChange).
+	executorCounts bool
 }
 
 // sparkPodEventFilter implements the predicate.Predicate interface.
@@ -56,6 +59,7 @@ func newSparkPodEventFilter(client client.Client, namespaces []string, namespace
 		client:           client,
 		namespaceMatcher: matcher,
 		logger:           log.Log.WithName("spark-pod-event-filter"),
+		executorCounts:   true,
 	}, nil
 }
 
@@ -81,7 +85,8 @@ func (f *sparkPodEventFilter) Update(e event.UpdateEvent) bool {
 		return false
 	}
 
-	if newPod.Status.Phase == oldPod.Status.Phase && !executorCountsMayChange(oldPod, newPod) {
+	countsMayChange := f.executorCounts && executorCountsMayChange(oldPod, newPod)
+	if newPod.Status.Phase == oldPod.Status.Phase && !countsMayChange {
 		return false
 	}
 

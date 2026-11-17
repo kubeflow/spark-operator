@@ -981,6 +981,22 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --max-tracked-executor-per-app=123
 
+  - it: Should enable the executor counts by default
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --enable-executor-counts=true
+
+  - it: Should contain `--enable-executor-counts=false` arg if `controller.executorCounts.enable` is false
+    set:
+      controller:
+        executorCounts:
+          enable: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --enable-executor-counts=false
+
 
   - it: Should add leader election parameters if `controller.leaderElection.leaseDuration`, `controller.leaderElection.renewDeadline` and `controller.leaderElection.retryPeriod` are set.
     set:

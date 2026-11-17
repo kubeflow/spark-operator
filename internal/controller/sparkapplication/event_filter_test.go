@@ -575,6 +575,7 @@ func TestSparkPodEventFilter_Update(t *testing.T) {
 		existingNs        *corev1.Namespace
 		oldPod            *corev1.Pod
 		newPod            *corev1.Pod
+		noExecutorCounts  bool
 		expected          bool
 	}{
 		{
@@ -715,6 +716,14 @@ func TestSparkPodEventFilter_Update(t *testing.T) {
 			expected:   true,
 		},
 		{
+			name:             "phase not changed - executor became ready, executor counts disabled",
+			namespaces:       []string{"default"},
+			oldPod:           sparkPod(common.SparkRoleExecutor, false, false),
+			newPod:           sparkPod(common.SparkRoleExecutor, true, false),
+			noExecutorCounts: true,
+			expected:         false,
+		},
+		{
 			name:       "phase not changed - driver became ready",
 			namespaces: []string{"default"},
 			oldPod:     sparkPod(common.SparkRoleDriver, false, false),
@@ -735,6 +744,7 @@ func TestSparkPodEventFilter_Update(t *testing.T) {
 			if err != nil {
 				t.Fatalf("newSparkPodEventFilter() unexpected error: %v", err)
 			}
+			filter.executorCounts = !tt.noExecutorCounts
 
 			e := event.UpdateEvent{ObjectOld: tt.oldPod, ObjectNew: tt.newPod}
 			result := filter.Update(e)

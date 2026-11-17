@@ -74,6 +74,11 @@ type Options struct {
 
 	MaxTrackedExecutorPerApp int
 
+	// EnableExecutorCounts records the executor counts in status.executors. When false,
+	// status.executors is left unset, and executor pod updates that keep their phase do not
+	// trigger a reconcile.
+	EnableExecutorCounts bool
+
 	// EnableDriverPDB gates creation of a PodDisruptionBudget for the driver pod.
 	// When false, the reconciler will not create or delete a PDB regardless of
 	// the SparkApplication spec. Defaults to false.
@@ -282,6 +287,9 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 	if err != nil {
 		return fmt.Errorf("failed to create spark pod event filter: %v", err)
 	}
+	podEventFilter.executorCounts = r.options.EnableExecutorCounts
+	podEventHandler := NewSparkPodEventHandler(mgr.GetClient(), r.options.SparkExecutorMetrics)
+	podEventHandler.executorCounts = r.options.EnableExecutorCounts
 
 	appEventFilter, err := NewSparkApplicationEventFilter(
 		mgr.GetClient(),
@@ -298,7 +306,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 		Named(name).
 		Watches(
 			&corev1.Pod{},
-			NewSparkPodEventHandler(mgr.GetClient(), r.options.SparkExecutorMetrics),
+			podEventHandler,
 			builder.WithPredicates(podEventFilter),
 		).
 		Watches(
@@ -1280,19 +1288,34 @@ func (r *Reconciler) updateExecutorStateAndCounts(ctx context.Context, app *v1be
 		return err
 	}
 	r.updateExecutorState(ctx, app, podList.Items)
-	updateExecutorCounts(app, podList.Items)
+	r.updateExecutorCountsIfEnabled(app, podList.Items)
 	return nil
 }
 
 // refreshExecutorCounts lists the executor pods of the application and updates status.executors
 // from them.
 func (r *Reconciler) refreshExecutorCounts(ctx context.Context, app *v1beta2.SparkApplication) error {
+	if !r.options.EnableExecutorCounts {
+		app.Status.Executors = nil
+		return nil
+	}
 	podList, err := r.getExecutorPods(ctx, app)
 	if err != nil {
 		return err
 	}
 	updateExecutorCounts(app, podList.Items)
 	return nil
+}
+
+// updateExecutorCountsIfEnabled updates status.executors from the executor pods, or clears it
+// when the executor counts are disabled, so that counts recorded before they were disabled do not
+// look current to a consumer.
+func (r *Reconciler) updateExecutorCountsIfEnabled(app *v1beta2.SparkApplication, pods []corev1.Pod) {
+	if !r.options.EnableExecutorCounts {
+		app.Status.Executors = nil
+		return
+	}
+	updateExecutorCounts(app, pods)
 }
 
 // updateSparkApplicationStatus updates the status of the SparkApplication.
