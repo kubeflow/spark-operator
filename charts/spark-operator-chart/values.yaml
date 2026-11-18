@@ -134,6 +134,11 @@ controller:
   # -- Specifies the maximum number of Executor pods that can be tracked by the controller per SparkApplication.
   maxTrackedExecutorPerApp: 1000
 
+  executorCounts:
+    # -- Record the executor counts of each SparkApplication in `status.executors`.
+    # Set it to `false` to not record them, which leaves `status.executors` unset.
+    enable: true
+
   # -- Default Time-To-Live (in seconds) applied to terminated SparkApplications that do not
   # set spec.timeToLiveSeconds. Requires the DefaultTimeToLive feature gate to be enabled.
   # 0 (default) disables it.

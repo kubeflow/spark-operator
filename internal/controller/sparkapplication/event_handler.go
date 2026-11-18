@@ -38,6 +38,9 @@ import (
 type SparkPodEventHandler struct {
 	client  client.Client
 	metrics *metrics.SparkExecutorMetrics
+	// executorCounts enqueues executor pod updates that keep their phase but can change
+	// status.executors (see executorCountsMayChange).
+	executorCounts bool
 }
 
 // SparkPodEventHandler implements handler.EventHandler.
@@ -46,8 +49,9 @@ var _ handler.EventHandler = &SparkPodEventHandler{}
 // NewSparkPodEventHandler creates a new sparkPodEventHandler instance.
 func NewSparkPodEventHandler(client client.Client, metrics *metrics.SparkExecutorMetrics) *SparkPodEventHandler {
 	handler := &SparkPodEventHandler{
-		client:  client,
-		metrics: metrics,
+		client:         client,
+		metrics:        metrics,
+		executorCounts: true,
 	}
 	return handler
 }
@@ -79,7 +83,8 @@ func (h *SparkPodEventHandler) Update(ctx context.Context, event event.UpdateEve
 		return
 	}
 
-	if newPod.Status.Phase == oldPod.Status.Phase {
+	countsMayChange := h.executorCounts && executorCountsMayChange(oldPod, newPod)
+	if newPod.Status.Phase == oldPod.Status.Phase && !countsMayChange {
 		return
 	}
 
