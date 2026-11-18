@@ -60,6 +60,7 @@ func TestSetSparkApplicationDefaultsEmptyRestartPolicyShouldDefaultToNever(t *te
 	SetSparkApplicationDefaults(app)
 
 	assert.Equal(t, RestartPolicyNever, app.Spec.RestartPolicy.Type)
+	assert.Equal(t, RestartPolicyRetryIntervalMethodLinear, app.Spec.RestartPolicy.RetryIntervalMethod)
 }
 
 func TestSetSparkApplicationDefaultsOnFailureRestartPolicyShouldSetDefaultValues(t *testing.T) {
@@ -74,10 +75,26 @@ func TestSetSparkApplicationDefaultsOnFailureRestartPolicyShouldSetDefaultValues
 	SetSparkApplicationDefaults(app)
 
 	assert.Equal(t, RestartPolicyOnFailure, app.Spec.RestartPolicy.Type)
+	assert.Equal(t, RestartPolicyRetryIntervalMethodLinear, app.Spec.RestartPolicy.RetryIntervalMethod)
 	assert.NotNil(t, app.Spec.RestartPolicy.OnFailureRetryInterval)
 	assert.Equal(t, int64(5), *app.Spec.RestartPolicy.OnFailureRetryInterval)
 	assert.NotNil(t, app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval)
 	assert.Equal(t, int64(5), *app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval)
+}
+
+func TestSetSparkApplicationDefaultsRestartPolicyShouldNotOverrideRetryIntervalMethodIfSet(t *testing.T) {
+	app := &SparkApplication{
+		Spec: SparkApplicationSpec{
+			RestartPolicy: RestartPolicy{
+				Type:                RestartPolicyOnFailure,
+				RetryIntervalMethod: RestartPolicyRetryIntervalMethodStatic,
+			},
+		},
+	}
+
+	SetSparkApplicationDefaults(app)
+
+	assert.Equal(t, RestartPolicyRetryIntervalMethodStatic, app.Spec.RestartPolicy.RetryIntervalMethod)
 }
 
 func TestSetSparkApplicationDefaultsOnFailureRestartPolicyShouldSetDefaultValueForOnFailureRetryInterval(t *testing.T) {

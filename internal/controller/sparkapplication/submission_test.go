@@ -17,11 +17,13 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -29,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
@@ -36,6 +39,44 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
+
+type noopSubmitter struct{}
+
+func (noopSubmitter) Submit(_ context.Context, _ *v1beta2.SparkApplication) error {
+	return nil
+}
+
+func TestSubmitSparkApplicationResetsTerminationTime(t *testing.T) {
+	reconciler := &Reconciler{
+		submitter: noopSubmitter{},
+		recorder:  record.NewFakeRecorder(1),
+	}
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			MainApplicationFile: ptr.To("local:///dummy.jar"),
+		},
+		Status: v1beta2.SparkApplicationStatus{
+			SubmissionAttempts: 2,
+			ExecutionAttempts:  1,
+			TerminationTime:    metav1.NewTime(time.Now().Add(-10 * time.Minute)),
+			AppState: v1beta2.ApplicationState{
+				State: v1beta2.ApplicationStateFailing,
+			},
+		},
+	}
+
+	reconciler.submitSparkApplication(context.Background(), app)
+
+	assert.True(t, app.Status.TerminationTime.IsZero())
+	assert.Equal(t, v1beta2.ApplicationStateSubmitted, app.Status.AppState.State)
+	assert.EqualValues(t, 3, app.Status.SubmissionAttempts)
+	assert.EqualValues(t, 2, app.Status.ExecutionAttempts)
+}
 
 func TestExecutorConfOption(t *testing.T) {
 	tests := []struct {
