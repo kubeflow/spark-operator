@@ -128,9 +128,7 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 	return v.validateSpecWithPath(ctx, app, field.NewPath("spec"))
 }
 
-// validateSpecWithPath runs the shared SparkApplication spec validation against
-// the given root field path so callers validating an embedded template can
-// report errors with the path the template occupies in the parent object.
+// validateSpecWithPath runs the shared SparkApplication validation against the given path.
 func (v *SparkApplicationValidator) validateSpecWithPath(ctx context.Context, app *v1beta2.SparkApplication, path *field.Path) error {
 	if err := v.validateSparkVersion(app); err != nil {
 		return err
