@@ -27,28 +27,21 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-// ErrInvalidTimeZone is returned by ParseSchedule when the supplied timezone
-// is non-empty but cannot be resolved by time.LoadLocation. Callers can
-// distinguish this from a cron parse failure via errors.Is.
+// ErrInvalidTimeZone is returned when the supplied timezone cannot be resolved.
 var ErrInvalidTimeZone = errors.New("invalid timezone")
 
-// ErrInvalidSchedule is returned by ParseSchedule when the cron expression
-// (with any prepended CRON_TZ= prefix) cannot be parsed by cron.ParseStandard.
+// ErrInvalidSchedule is returned when the cron expression cannot be parsed.
 var ErrInvalidSchedule = errors.New("invalid schedule")
 
 // ParseSchedule converts a ScheduledSparkApplication.Spec.Schedule and
-// Spec.TimeZone into a cron.Schedule. The result is used by the controller to
-// compute next-run times and by the validating webhook at admission so that
-// both accept exactly the same set of inputs.
+// Spec.TimeZone into a cron.Schedule. The controller and the validating
+// webhook both use it, so they accept exactly the same inputs.
 //
-// The construction mirrors the long-standing controller behaviour: an empty
-// timezone is treated as "Local"; a non-empty timezone is validated up front via
-// time.LoadLocation; and if the schedule does not already carry an embedded
-// "CRON_TZ=" or "TZ=" prefix, the timezone is woven into the schedule via a
-// "CRON_TZ=<tz>" prefix, with embedded values winning.
+// An empty timezone means Local; a non-empty one must resolve. An embedded
+// CRON_TZ=/TZ= prefix takes precedence over the supplied timezone.
 //
-// On error, the returned cron.Schedule is nil and the error is annotated to
-// distinguish a timezone failure from a schedule-parse failure.
+// On error the schedule is nil and the error distinguishes a bad timezone from
+// a bad schedule.
 func ParseSchedule(schedule, timezone string) (cron.Schedule, error) {
 	if timezone == "" {
 		timezone = "Local"

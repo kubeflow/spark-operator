@@ -58,8 +58,7 @@ type ScheduledSparkApplicationValidator struct {
 	sparkAppValidator *SparkApplicationValidator
 }
 
-// NewScheduledSparkApplicationValidator creates a new ScheduledSparkApplicationValidator instance
-// that delegates template validation to the supplied SparkApplicationValidator.
+// NewScheduledSparkApplicationValidator creates a validator that delegates template validation.
 func NewScheduledSparkApplicationValidator(sparkAppValidator *SparkApplicationValidator) *ScheduledSparkApplicationValidator {
 	return &ScheduledSparkApplicationValidator{
 		sparkAppValidator: sparkAppValidator,
@@ -121,9 +120,7 @@ func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context,
 	return nil, nil
 }
 
-// validate runs all spec-level checks for a ScheduledSparkApplication. Errors
-// returned here become webhook denials, so the user sees them on `kubectl apply`
-// rather than only as a Status.ScheduleState=FailedValidation after the fact.
+// validate runs all spec-level checks for a ScheduledSparkApplication; errors here become webhook denials.
 func (v *ScheduledSparkApplicationValidator) validate(ctx context.Context, app *v1beta2.ScheduledSparkApplication) error {
 	if err := v.validateSchedule(app); err != nil {
 		return err
@@ -135,9 +132,7 @@ func (v *ScheduledSparkApplicationValidator) validate(ctx context.Context, app *
 		return err
 	}
 	if v.sparkAppValidator != nil {
-		// Validate the embedded SparkApplication template using the same spec-level
-		// checks the SparkApplication webhook runs. We synthesize a SparkApplication
-		// so the existing validateSpec contract is preserved.
+		// Validate the embedded template via the shared SparkApplication validator.
 		sparkApp := &v1beta2.SparkApplication{
 			ObjectMeta: app.ObjectMeta,
 			Spec:       app.Spec.Template,
@@ -150,16 +145,9 @@ func (v *ScheduledSparkApplicationValidator) validate(ctx context.Context, app *
 }
 
 // validateSchedule rejects empty or unparseable cron schedules and unknown
-// timezones. The actual parsing is delegated to util.ParseSchedule so the
-// validator and the controller agree on the set of accepted inputs; a change
-// to one is automatically reflected in the other.
-//
-// Note: the controller short-circuits reconciliation when Spec.Suspend is true
-// (see internal/controller/scheduledsparkapplication/controller.go), so a
-// suspended SSA with a garbage schedule is tolerated at runtime. Admission is
-// intentionally stricter: a persisted invalid schedule that gets unsuspended
-// later would silently fail at the next reconcile, which is harder to debug
-// than a synchronous rejection at apply time.
+// timezones. Parsing is delegated to util.ParseSchedule so the controller and
+// webhook agree; admission is stricter than the suspended-state runtime path,
+// which tolerates invalid schedules.
 func (v *ScheduledSparkApplicationValidator) validateSchedule(app *v1beta2.ScheduledSparkApplication) error {
 	if strings.TrimSpace(app.Spec.Schedule) == "" {
 		return ErrEmptySchedule
@@ -170,10 +158,8 @@ func (v *ScheduledSparkApplicationValidator) validateSchedule(app *v1beta2.Sched
 	return nil
 }
 
-// validateConcurrencyPolicy rejects values outside the documented set. An
-// empty value is accepted because the ScheduledSparkApplication defaulter is
-// not implemented yet; the controller treats it as Allow, matching the
-// documented default.
+// validateConcurrencyPolicy rejects values outside the documented set. An empty
+// value is accepted; the controller treats it as Allow (defaulter not implemented yet).
 func (v *ScheduledSparkApplicationValidator) validateConcurrencyPolicy(policy v1beta2.ConcurrencyPolicy) error {
 	switch policy {
 	case "", v1beta2.ConcurrencyAllow, v1beta2.ConcurrencyForbid, v1beta2.ConcurrencyReplace:

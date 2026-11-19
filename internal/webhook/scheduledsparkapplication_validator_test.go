@@ -98,10 +98,8 @@ func TestScheduledSparkApplicationValidatorValidateUpdate(t *testing.T) {
 	})
 
 	t.Run("skips validation when spec did not change even if it is invalid", func(t *testing.T) {
-		// Anti-tautology guard: first prove the spec we're about to short-circuit
-		// past would actually be rejected if validation ran. Then prove ValidateUpdate
-		// returns nil for the unchanged-spec case. Together these prove the
-		// equality.Semantic.DeepEqual short-circuit is the path that succeeded.
+		// Anti-tautology guard: prove the stale spec would be rejected, then that
+		// the unchanged-spec short-circuit returns nil.
 		invalid := newScheduledSparkApplication()
 		invalid.Spec.Schedule = "not a cron expression"
 		if err := validator.validate(context.Background(), invalid); err == nil {
