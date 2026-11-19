@@ -18,6 +18,7 @@ package metrics
 
 import (
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -26,6 +27,11 @@ import (
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
+)
+
+const (
+	stateLabel         = "state"
+	stateLabelValueNew = "NEW"
 )
 
 type SparkApplicationMetrics struct {
@@ -38,6 +44,7 @@ type SparkApplicationMetrics struct {
 	submitCount           *prometheus.CounterVec
 	failedSubmissionCount *prometheus.CounterVec
 	runningCount          *prometheus.GaugeVec
+	stateCount            *prometheus.GaugeVec
 	successCount          *prometheus.CounterVec
 	failureCount          *prometheus.CounterVec
 
@@ -91,6 +98,13 @@ func NewSparkApplicationMetrics(prefix string, labels []string, jobSubmitLatency
 				Help: "Total number of running SparkApplication",
 			},
 			validLabels,
+		),
+		stateCount: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: util.CreateValidMetricNameLabel(prefix, common.MetricSparkApplicationStateCount),
+				Help: "Current number of SparkApplication in each state",
+			},
+			append(validLabels, stateLabel),
 		),
 		successCount: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -164,6 +178,9 @@ func (m *SparkApplicationMetrics) Register() {
 	if err := metrics.Registry.Register(m.runningCount); err != nil {
 		logger.Error(err, "Failed to register spark application metric", "name", common.MetricSparkApplicationRunningCount)
 	}
+	if err := metrics.Registry.Register(m.stateCount); err != nil {
+		logger.Error(err, "Failed to register spark application metric", "name", common.MetricSparkApplicationStateCount)
+	}
 	if err := metrics.Registry.Register(m.successCount); err != nil {
 		logger.Error(err, "Failed to register spark application metric", "name", common.MetricSparkApplicationSuccessCount)
 	}
@@ -191,6 +208,8 @@ func (m *SparkApplicationMetrics) Register() {
 }
 
 func (m *SparkApplicationMetrics) HandleSparkApplicationCreate(app *v1beta2.SparkApplication) {
+	m.addStateCount(app, m.getStateCountLabels(app), 1)
+
 	state := util.GetApplicationState(app)
 
 	switch state {
@@ -210,6 +229,13 @@ func (m *SparkApplicationMetrics) HandleSparkApplicationCreate(app *v1beta2.Spar
 }
 
 func (m *SparkApplicationMetrics) HandleSparkApplicationUpdate(oldApp *v1beta2.SparkApplication, newApp *v1beta2.SparkApplication) {
+	oldStateLabels := m.getStateCountLabels(oldApp)
+	newStateLabels := m.getStateCountLabels(newApp)
+	if !maps.Equal(oldStateLabels, newStateLabels) {
+		m.addStateCount(oldApp, oldStateLabels, -1)
+		m.addStateCount(newApp, newStateLabels, 1)
+	}
+
 	oldState := util.GetApplicationState(oldApp)
 	newState := util.GetApplicationState(newApp)
 	if newState == oldState {
@@ -242,6 +268,8 @@ func (m *SparkApplicationMetrics) HandleSparkApplicationUpdate(oldApp *v1beta2.S
 }
 
 func (m *SparkApplicationMetrics) HandleSparkApplicationDelete(app *v1beta2.SparkApplication) {
+	m.addStateCount(app, m.getStateCountLabels(app), -1)
+
 	state := util.GetApplicationState(app)
 
 	switch state {
@@ -308,6 +336,34 @@ func (m *SparkApplicationMetrics) decRunningCount(app *v1beta2.SparkApplication)
 
 	gauge.Dec()
 	logger.V(1).Info("Decreased SparkApplication running count", "name", app.Name, "namespace", app.Namespace, "metric", common.MetricSparkApplicationRunningCount, "labels", labels)
+}
+
+func (m *SparkApplicationMetrics) getStateCountLabels(app *v1beta2.SparkApplication) prometheus.Labels {
+	if app.Spec.ManagedBy != nil && *app.Spec.ManagedBy != common.SparkOperatorManagerName {
+		return nil
+	}
+
+	labels := m.getMetricLabels(app)
+	labels[stateLabel] = string(util.GetApplicationState(app))
+	if labels[stateLabel] == string(v1beta2.ApplicationStateNew) {
+		labels[stateLabel] = stateLabelValueNew
+	}
+	return labels
+}
+
+func (m *SparkApplicationMetrics) addStateCount(app *v1beta2.SparkApplication, labels prometheus.Labels, delta float64) {
+	if labels == nil {
+		return
+	}
+
+	gauge, err := m.stateCount.GetMetricWith(labels)
+	if err != nil {
+		logger.Error(err, "Failed to collect metric for SparkApplication", "name", app.Name, "namespace", app.Namespace, "metric", common.MetricSparkApplicationStateCount, "labels", labels)
+		return
+	}
+
+	gauge.Add(delta)
+	logger.V(1).Info("Changed spark application state count", "name", app.Name, "namespace", app.Namespace, "metric", common.MetricSparkApplicationStateCount, "labels", labels, "delta", delta)
 }
 
 func (m *SparkApplicationMetrics) incSuccessCount(app *v1beta2.SparkApplication) {
