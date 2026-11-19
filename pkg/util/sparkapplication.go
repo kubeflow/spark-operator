@@ -438,12 +438,12 @@ func GetDriverRequestResource(app *v1beta2.SparkApplication) corev1.ResourceList
 
 	// Memory + MemoryOverhead correspond to driver's memory request
 	if app.Spec.Driver.Memory != nil {
-		if value, err := resource.ParseQuantity(*app.Spec.Driver.Memory); err == nil {
+		if value, err := resource.ParseQuantity(ConvertJavaMemoryStringToK8sMemoryString(*app.Spec.Driver.Memory)); err == nil {
 			minResource[corev1.ResourceMemory] = value
 		}
 	}
 	if app.Spec.Driver.MemoryOverhead != nil {
-		if value, err := resource.ParseQuantity(*app.Spec.Driver.MemoryOverhead); err == nil {
+		if value, err := resource.ParseQuantity(ConvertJavaMemoryStringToK8sMemoryString(*app.Spec.Driver.MemoryOverhead)); err == nil {
 			if existing, ok := minResource[corev1.ResourceMemory]; ok {
 				existing.Add(value)
 				minResource[corev1.ResourceMemory] = existing
@@ -485,12 +485,12 @@ func GetExecutorRequestResource(app *v1beta2.SparkApplication) corev1.ResourceLi
 
 	// Memory + MemoryOverhead correspond to executor's memory request
 	if app.Spec.Executor.Memory != nil {
-		if value, err := resource.ParseQuantity(*app.Spec.Executor.Memory); err == nil {
+		if value, err := resource.ParseQuantity(ConvertJavaMemoryStringToK8sMemoryString(*app.Spec.Executor.Memory)); err == nil {
 			minResource[corev1.ResourceMemory] = value
 		}
 	}
 	if app.Spec.Executor.MemoryOverhead != nil {
-		if value, err := resource.ParseQuantity(*app.Spec.Executor.MemoryOverhead); err == nil {
+		if value, err := resource.ParseQuantity(ConvertJavaMemoryStringToK8sMemoryString(*app.Spec.Executor.MemoryOverhead)); err == nil {
 			if existing, ok := minResource[corev1.ResourceMemory]; ok {
 				existing.Add(value)
 				minResource[corev1.ResourceMemory] = existing
