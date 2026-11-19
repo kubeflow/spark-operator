@@ -280,7 +280,11 @@ func (r *Reconciler) shouldStartNextRun(scheduledApp *v1beta2.ScheduledSparkAppl
 	sortSparkApplicationsInPlace(apps)
 	// The last run (most recently started) is the first one in the sorted slice.
 	lastRun := apps[0]
-	switch scheduledApp.Spec.ConcurrencyPolicy {
+	concurrencyPolicy := scheduledApp.Spec.ConcurrencyPolicy
+	if concurrencyPolicy == "" {
+		concurrencyPolicy = v1beta2.ConcurrencyAllow
+	}
+	switch concurrencyPolicy {
 	case v1beta2.ConcurrencyAllow:
 		return true, nil
 	case v1beta2.ConcurrencyForbid:

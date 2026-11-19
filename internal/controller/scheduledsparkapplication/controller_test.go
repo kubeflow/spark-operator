@@ -18,6 +18,7 @@ package scheduledsparkapplication
 
 import (
 	"context"
+	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -25,14 +26,17 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/clock"
 	testingclock "k8s.io/utils/clock/testing"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
 var _ = Describe("ScheduledSparkApplication Controller", func() {
@@ -271,3 +275,38 @@ var _ = Describe("formatTimestamp", func() {
 		Expect(result).To(Equal("1234567890123456789"))
 	})
 })
+
+func TestShouldStartNextRun(t *testing.T) {
+	scheme := runtime.NewScheme()
+	if err := v1beta2.AddToScheme(scheme); err != nil {
+		t.Fatalf("failed to add v1beta2 to scheme: %v", err)
+	}
+	existing := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app-2026-01-01t120000000000",
+			Namespace: "default",
+			Labels:    map[string]string{common.LabelScheduledSparkAppName: "test-app"},
+		},
+		Status: v1beta2.SparkApplicationStatus{
+			AppState: v1beta2.ApplicationState{State: v1beta2.ApplicationStateRunning},
+		},
+	}
+	r := &Reconciler{
+		client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build(),
+	}
+
+	app := &v1beta2.ScheduledSparkApplication{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "default"},
+		Spec: v1beta2.ScheduledSparkApplicationSpec{
+			Schedule: "@every 1m",
+		},
+	}
+
+	ok, err := r.shouldStartNextRun(app)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected unset concurrency policy to be treated as Allow, got false")
+	}
+}
