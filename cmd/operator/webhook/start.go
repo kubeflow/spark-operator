@@ -326,9 +326,10 @@ func start() {
 		os.Exit(1)
 	}
 
+	sparkAppValidator := webhook.NewSparkApplicationValidator(mgr.GetClient(), enableResourceQuotaEnforcement)
 	if err := ctrl.NewWebhookManagedBy(mgr, &v1beta2.SparkApplication{}).
 		WithDefaulter(webhook.NewNamespaceFilteringDefaulter(webhook.NewSparkApplicationDefaulter(), namespaceMatcher, mgr.GetClient())).
-		WithValidator(webhook.NewNamespaceFilteringValidator(webhook.NewSparkApplicationValidator(mgr.GetClient(), enableResourceQuotaEnforcement), namespaceMatcher, mgr.GetClient())).
+		WithValidator(webhook.NewNamespaceFilteringValidator(sparkAppValidator, namespaceMatcher, mgr.GetClient())).
 		WithLogConstructor(webhook.LogConstructor).
 		Complete(); err != nil {
 		logger.Error(err, "Failed to create mutating webhook for Spark application")
@@ -337,7 +338,7 @@ func start() {
 
 	if err := ctrl.NewWebhookManagedBy(mgr, &v1beta2.ScheduledSparkApplication{}).
 		WithDefaulter(webhook.NewNamespaceFilteringDefaulter(webhook.NewScheduledSparkApplicationDefaulter(), namespaceMatcher, mgr.GetClient())).
-		WithValidator(webhook.NewNamespaceFilteringValidator(webhook.NewScheduledSparkApplicationValidator(), namespaceMatcher, mgr.GetClient())).
+		WithValidator(webhook.NewNamespaceFilteringValidator(webhook.NewScheduledSparkApplicationValidator(sparkAppValidator), namespaceMatcher, mgr.GetClient())).
 		WithLogConstructor(webhook.LogConstructor).
 		Complete(); err != nil {
 		logger.Error(err, "Failed to create mutating webhook for Scheduled Spark application")
