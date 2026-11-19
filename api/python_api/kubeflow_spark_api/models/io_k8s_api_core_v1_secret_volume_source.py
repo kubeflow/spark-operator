@@ -42,10 +42,11 @@ class IoK8sApiCoreV1SecretVolumeSource(BaseModel):
     Adapts a Secret into a volume.  The contents of the target Secret's Data field will be presented in a volume as files using the keys in the Data field as the file names. Secret volumes support ownership management and SELinux relabeling.
     """ # noqa: E501
     default_mode: Optional[StrictInt] = Field(default=None, description="defaultMode is Optional: mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Defaults to 0644. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.", alias="defaultMode")
+    default_user: Optional[StrictInt] = Field(default=None, description="defaultUser is Optional: The owner UID of the created files by default. The defaultUser field is only used as a fallback when the item-level user field is unset. (Alpha) This field requires the AtomicWriteVolumeUserFields feature gate to be enabled.", alias="defaultUser")
     items: Optional[List[IoK8sApiCoreV1KeyToPath]] = Field(default=None, description="items If unspecified, each key-value pair in the Data field of the referenced Secret will be projected into the volume as a file whose name is the key and content is the value. If specified, the listed keys will be projected into the specified paths, and unlisted keys will not be present. If a key is specified which is not present in the Secret, the volume setup will error unless it is marked optional. Paths must be relative and may not contain the '..' path or start with '..'.")
     optional: Optional[StrictBool] = Field(default=None, description="optional field specify whether the Secret or its keys must be defined")
     secret_name: Optional[StrictStr] = Field(default=None, description="secretName is the name of the secret in the pod's namespace to use. More info: https://kubernetes.io/docs/concepts/storage/volumes#secret", alias="secretName")
-    __properties: ClassVar[List[str]] = ["defaultMode", "items", "optional", "secretName"]
+    __properties: ClassVar[List[str]] = ["defaultMode", "defaultUser", "items", "optional", "secretName"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -106,6 +107,7 @@ class IoK8sApiCoreV1SecretVolumeSource(BaseModel):
 
         _obj = cls.model_validate({
             "defaultMode": obj.get("defaultMode"),
+            "defaultUser": obj.get("defaultUser"),
             "items": [IoK8sApiCoreV1KeyToPath.from_dict(_item) for _item in obj["items"]] if obj.get("items") is not None else None,
             "optional": obj.get("optional"),
             "secretName": obj.get("secretName")

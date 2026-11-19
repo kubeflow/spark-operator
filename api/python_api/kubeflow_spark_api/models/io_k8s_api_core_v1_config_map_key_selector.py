@@ -40,7 +40,7 @@ class IoK8sApiCoreV1ConfigMapKeySelector(BaseModel):
     """
     Selects a key from a ConfigMap.
     """ # noqa: E501
-    key: StrictStr = Field(description="The key to select.")
+    key: StrictStr = Field(description="The key to select from the ConfigMap's Data field. Keys in the BinaryData field are not currently propagated to container env vars.")
     name: Optional[StrictStr] = Field(default='', description="Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names")
     optional: Optional[StrictBool] = Field(default=None, description="Specify whether the ConfigMap or its key must be defined")
     __properties: ClassVar[List[str]] = ["key", "name", "optional"]

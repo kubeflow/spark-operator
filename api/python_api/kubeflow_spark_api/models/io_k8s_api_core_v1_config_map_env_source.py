@@ -38,7 +38,7 @@ from typing_extensions import Self
 
 class IoK8sApiCoreV1ConfigMapEnvSource(BaseModel):
     """
-    ConfigMapEnvSource selects a ConfigMap to populate the environment variables with.  The contents of the target ConfigMap's Data field will represent the key-value pairs as environment variables.
+    ConfigMapEnvSource selects a ConfigMap to populate the environment variables with.  The contents of the target ConfigMap's Data field will represent the key-value pairs as environment variables. Keys in the BinaryData field are not currently propagated to container env vars.
     """ # noqa: E501
     name: Optional[StrictStr] = Field(default='', description="Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names")
     optional: Optional[StrictBool] = Field(default=None, description="Specify whether the ConfigMap must be defined")

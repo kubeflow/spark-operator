@@ -16,7 +16,7 @@
 
 ARG SPARK_IMAGE=docker.io/apache/spark:4.2.1-scala2.13-java21-ubuntu@sha256:ce1d0c8407066ed44b91f699b6edd3564f143722e3ef95e19d99a67b5754b306
 
-FROM docker.io/library/golang:1.25.11@sha256:00feed335fe561979f2cdcc30a5191231977c5631fe79c40f7d3ab63b4fa222f AS builder
+FROM docker.io/library/golang:1.26.10@sha256:670bb5aa5349ae03b8516764718486f4f16399134bdc9acd0c46a23f043ab05c AS builder
 
 WORKDIR /workspace
 

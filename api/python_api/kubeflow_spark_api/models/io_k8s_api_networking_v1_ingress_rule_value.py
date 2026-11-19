@@ -31,7 +31,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_api_networking_v1_http_ingress_rule_value import IoK8sApiNetworkingV1HTTPIngressRuleValue
 from typing import Optional, Set
@@ -41,7 +41,7 @@ class IoK8sApiNetworkingV1IngressRuleValue(BaseModel):
     """
     IngressRuleValue represents a rule to apply against incoming requests. If the rule is satisfied, the request is routed to the specified backend. Currently mixing different types of rules in a single Ingress is disallowed, so exactly one of the following must be set.
     """ # noqa: E501
-    http: Optional[IoK8sApiNetworkingV1HTTPIngressRuleValue] = None
+    http: Optional[IoK8sApiNetworkingV1HTTPIngressRuleValue] = Field(default=None, description="http is a HTTP IngressRuleValue, which contains a list of http selectors")
     __properties: ClassVar[List[str]] = ["http"]
 
     model_config = ConfigDict(
