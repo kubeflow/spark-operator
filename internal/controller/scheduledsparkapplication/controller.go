@@ -272,9 +272,15 @@ func (r *Reconciler) createSparkApplication(
 	for key, value := range scheduledApp.Labels {
 		labels[key] = value
 	}
+	timestamp := formatTimestamp(t, r.options.TimestampPrecision)
+	runName := util.GetScheduledSparkApplicationRunName(scheduledApp, timestamp)
+	if originalName := fmt.Sprintf("%s-%s", scheduledApp.Name, timestamp); runName != originalName {
+		logger.Info("Shortened scheduled SparkApplication run name", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace,
+			"originalName", originalName, "runName", runName)
+	}
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", scheduledApp.Name, formatTimestamp(t, r.options.TimestampPrecision)),
+			Name:      runName,
 			Namespace: scheduledApp.Namespace,
 			Labels:    labels,
 			OwnerReferences: []metav1.OwnerReference{{
