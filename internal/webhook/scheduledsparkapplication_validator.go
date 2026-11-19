@@ -18,6 +18,7 @@ package webhook
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -28,17 +29,41 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 // NOTE: The 'path' attribute must follow a specific pattern and should not be modified directly here.
 // Modifying the path for an invalid path can cause API server errors; failing to locate the webhook.
 // +kubebuilder:webhook:admissionReviewVersions=v1,failurePolicy=fail,groups=sparkoperator.k8s.io,matchPolicy=Exact,mutating=false,name=validate-scheduledsparkapplication.sparkoperator.k8s.io,path=/validate-sparkoperator-k8s-io-v1beta2-scheduledsparkapplication,reinvocationPolicy=Never,resources=scheduledsparkapplications,sideEffects=None,verbs=create;update,versions=v1beta2,webhookVersions=v1
 
-type ScheduledSparkApplicationValidator struct{}
+// ErrInvalidName is returned when the ScheduledSparkApplication name is invalid.
+var ErrInvalidName = errors.New("invalid ScheduledSparkApplication name")
 
-// NewScheduledSparkApplicationValidator creates a new ScheduledSparkApplicationValidator instance.
-func NewScheduledSparkApplicationValidator() *ScheduledSparkApplicationValidator {
-	return &ScheduledSparkApplicationValidator{}
+// ErrEmptySchedule is returned when the schedule is empty.
+var ErrEmptySchedule = errors.New("spec.schedule must not be empty")
+
+// ErrInvalidSchedule is returned when the schedule cannot be parsed.
+var ErrInvalidSchedule = errors.New("invalid spec.schedule/spec.timeZone")
+
+// ErrInvalidConcurrencyPolicy is returned when the concurrency policy is not allowed.
+var ErrInvalidConcurrencyPolicy = errors.New("invalid spec.concurrencyPolicy")
+
+// ErrInvalidHistoryLimit is returned when a run history limit is negative.
+var ErrInvalidHistoryLimit = errors.New("invalid run history limit")
+
+// ErrInvalidTemplate is returned when the embedded SparkApplication template is invalid.
+var ErrInvalidTemplate = errors.New("invalid ScheduledSparkApplication template")
+
+type ScheduledSparkApplicationValidator struct {
+	sparkAppValidator *SparkApplicationValidator
+}
+
+// NewScheduledSparkApplicationValidator creates a new ScheduledSparkApplicationValidator instance
+// that delegates template validation to the supplied SparkApplicationValidator.
+func NewScheduledSparkApplicationValidator(sparkAppValidator *SparkApplicationValidator) *ScheduledSparkApplicationValidator {
+	return &ScheduledSparkApplicationValidator{
+		sparkAppValidator: sparkAppValidator,
+	}
 }
 
 var _ admission.Validator[*v1beta2.ScheduledSparkApplication] = &ScheduledSparkApplicationValidator{}
@@ -55,7 +80,7 @@ func (v *ScheduledSparkApplicationValidator) ValidateCreate(ctx context.Context,
 	if err := v.validateName(app.Name); err != nil {
 		return nil, err
 	}
-	if err := v.validate(app); err != nil {
+	if err := v.validate(ctx, app); err != nil {
 		return nil, err
 	}
 	return deprecationWarnings(&app.Spec.Template, field.NewPath("spec", "template")), nil
@@ -79,7 +104,7 @@ func (v *ScheduledSparkApplicationValidator) ValidateUpdate(ctx context.Context,
 		return nil, nil
 	}
 
-	if err := v.validate(newApp); err != nil {
+	if err := v.validate(ctx, newApp); err != nil {
 		return nil, err
 	}
 	return deprecationWarnings(&newApp.Spec.Template, field.NewPath("spec", "template")), nil
@@ -96,11 +121,78 @@ func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context,
 	return nil, nil
 }
 
-func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) error {
-	if err := validateSparkConf(app.Spec.Template.SparkConf, app.Namespace); err != nil {
+// validate runs all spec-level checks for a ScheduledSparkApplication. Errors
+// returned here become webhook denials, so the user sees them on `kubectl apply`
+// rather than only as a Status.ScheduleState=FailedValidation after the fact.
+func (v *ScheduledSparkApplicationValidator) validate(ctx context.Context, app *v1beta2.ScheduledSparkApplication) error {
+	if err := v.validateSchedule(app); err != nil {
 		return err
 	}
-	return validateConfigMaps(&app.Spec.Template, field.NewPath("spec", "template"))
+	if err := v.validateConcurrencyPolicy(app.Spec.ConcurrencyPolicy); err != nil {
+		return err
+	}
+	if err := v.validateHistoryLimits(app); err != nil {
+		return err
+	}
+	if v.sparkAppValidator != nil {
+		// Validate the embedded SparkApplication template using the same spec-level
+		// checks the SparkApplication webhook runs. We synthesize a SparkApplication
+		// so the existing validateSpec contract is preserved.
+		sparkApp := &v1beta2.SparkApplication{
+			ObjectMeta: app.ObjectMeta,
+			Spec:       app.Spec.Template,
+		}
+		if err := v.sparkAppValidator.validateSpecWithPath(ctx, sparkApp, field.NewPath("spec", "template")); err != nil {
+			return fmt.Errorf("%w: %w", ErrInvalidTemplate, err)
+		}
+	}
+	return nil
+}
+
+// validateSchedule rejects empty or unparseable cron schedules and unknown
+// timezones. The actual parsing is delegated to util.ParseSchedule so the
+// validator and the controller agree on the set of accepted inputs; a change
+// to one is automatically reflected in the other.
+//
+// Note: the controller short-circuits reconciliation when Spec.Suspend is true
+// (see internal/controller/scheduledsparkapplication/controller.go), so a
+// suspended SSA with a garbage schedule is tolerated at runtime. Admission is
+// intentionally stricter: a persisted invalid schedule that gets unsuspended
+// later would silently fail at the next reconcile, which is harder to debug
+// than a synchronous rejection at apply time.
+func (v *ScheduledSparkApplicationValidator) validateSchedule(app *v1beta2.ScheduledSparkApplication) error {
+	if strings.TrimSpace(app.Spec.Schedule) == "" {
+		return ErrEmptySchedule
+	}
+	if _, err := util.ParseSchedule(app.Spec.Schedule, app.Spec.TimeZone); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidSchedule, err)
+	}
+	return nil
+}
+
+// validateConcurrencyPolicy rejects values outside the documented set. An
+// empty value is accepted because the ScheduledSparkApplication defaulter is
+// not implemented yet; the controller treats it as Allow, matching the
+// documented default.
+func (v *ScheduledSparkApplicationValidator) validateConcurrencyPolicy(policy v1beta2.ConcurrencyPolicy) error {
+	switch policy {
+	case "", v1beta2.ConcurrencyAllow, v1beta2.ConcurrencyForbid, v1beta2.ConcurrencyReplace:
+		return nil
+	default:
+		return fmt.Errorf("%w %q: must be one of %q, %q, %q", ErrInvalidConcurrencyPolicy, policy, v1beta2.ConcurrencyAllow, v1beta2.ConcurrencyForbid, v1beta2.ConcurrencyReplace)
+	}
+}
+
+// validateHistoryLimits rejects negative values for the run-history pointers.
+// Nil is accepted (the controller applies its own default).
+func (v *ScheduledSparkApplicationValidator) validateHistoryLimits(app *v1beta2.ScheduledSparkApplication) error {
+	if l := app.Spec.SuccessfulRunHistoryLimit; l != nil && *l < 0 {
+		return fmt.Errorf("%w: spec.successfulRunHistoryLimit must be >= 0, got %d", ErrInvalidHistoryLimit, *l)
+	}
+	if l := app.Spec.FailedRunHistoryLimit; l != nil && *l < 0 {
+		return fmt.Errorf("%w: spec.failedRunHistoryLimit must be >= 0, got %d", ErrInvalidHistoryLimit, *l)
+	}
+	return nil
 }
 
 // validateName ensures the ScheduledSparkApplication metadata.name, when combined with suffixes,
@@ -108,7 +200,7 @@ func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSpar
 // when creating SparkApplication resources that require DNS-1035 compliant names.
 func (v *ScheduledSparkApplicationValidator) validateName(name string) error {
 	if errs := validation.IsDNS1035Label(name); len(errs) > 0 {
-		return fmt.Errorf("invalid ScheduledSparkApplication name %q: %s", name, strings.Join(errs, ", "))
+		return fmt.Errorf("%w %q: %s", ErrInvalidName, name, strings.Join(errs, ", "))
 	}
 	return nil
 }
