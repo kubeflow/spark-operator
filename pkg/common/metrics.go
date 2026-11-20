@@ -26,6 +26,8 @@ const (
 
 	MetricSparkApplicationRunningCount = "spark_application_running_count"
 
+	MetricSparkApplicationStateCount = "spark_application_state_count"
+
 	MetricSparkApplicationSuccessCount = "spark_application_success_count"
 
 	MetricSparkApplicationFailureCount = "spark_application_failure_count"
