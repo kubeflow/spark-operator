@@ -33,6 +33,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -687,6 +688,61 @@ var _ = Describe("SparkApplication Controller", func() {
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result.Requeue).To(BeFalse())
+		})
+
+		It("Should requeue without an error when the status update conflicts", func() {
+			By("Taking the version that the informer cache still serves")
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			app.Status.ExecutorState = map[string]v1beta2.ExecutorState{"test-exec1": v1beta2.ExecutorStateRunning}
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+			stale := app.DeepCopy()
+
+			By("Writing a newer version that the cache has not observed yet")
+			app.Status.SparkApplicationID = "spark-test"
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+
+			base, err := client.NewWithWatch(cfg, client.Options{Scheme: k8sClient.Scheme()})
+			Expect(err).NotTo(HaveOccurred())
+			staleClient := interceptor.NewClient(base, interceptor.Funcs{
+				Get: func(ctx context.Context, c client.WithWatch, k client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					if cached, ok := obj.(*v1beta2.SparkApplication); ok && k == key {
+						stale.DeepCopyInto(cached)
+						return nil
+					}
+					return c.Get(ctx, k, obj, opts...)
+				},
+			})
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				staleClient,
+				nil,
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeTrue())
+
+			By("Reconciling again once the cache has caught up")
+			reconciler = sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				nil,
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			result, err = reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeFalse())
+
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(app.Status.ExecutorState).To(HaveKeyWithValue("test-exec1", v1beta2.ExecutorStateCompleted))
+			Expect(app.Status.SparkApplicationID).To(Equal("spark-test"))
 		})
 	})
 
