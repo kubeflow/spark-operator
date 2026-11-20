@@ -31,7 +31,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_api_core_v1_node_swap_status import IoK8sApiCoreV1NodeSwapStatus
 from typing import Optional, Set
@@ -50,9 +50,10 @@ class IoK8sApiCoreV1NodeSystemInfo(BaseModel):
     machine_id: StrictStr = Field(description="MachineID reported by the node. For unique machine identification in the cluster this field is preferred. Learn more from man(5) machine-id: http://man7.org/linux/man-pages/man5/machine-id.5.html", alias="machineID")
     operating_system: StrictStr = Field(description="The Operating System reported by the node", alias="operatingSystem")
     os_image: StrictStr = Field(description="OS Image reported by the node from /etc/os-release (e.g. Debian GNU/Linux 7 (wheezy)).", alias="osImage")
+    running_in_user_namespace: Optional[StrictBool] = Field(default=None, description="Whether the node is running in a user namespace.", alias="runningInUserNamespace")
     swap: Optional[IoK8sApiCoreV1NodeSwapStatus] = Field(default=None, description="Swap Info reported by the node.")
     system_uuid: StrictStr = Field(description="SystemUUID reported by the node. For unique machine identification MachineID is preferred. This field is specific to Red Hat hosts https://access.redhat.com/documentation/en-us/red_hat_subscription_management/1/html/rhsm/uuid", alias="systemUUID")
-    __properties: ClassVar[List[str]] = ["architecture", "bootID", "containerRuntimeVersion", "kernelVersion", "kubeProxyVersion", "kubeletVersion", "machineID", "operatingSystem", "osImage", "swap", "systemUUID"]
+    __properties: ClassVar[List[str]] = ["architecture", "bootID", "containerRuntimeVersion", "kernelVersion", "kubeProxyVersion", "kubeletVersion", "machineID", "operatingSystem", "osImage", "runningInUserNamespace", "swap", "systemUUID"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -117,6 +118,7 @@ class IoK8sApiCoreV1NodeSystemInfo(BaseModel):
             "machineID": obj.get("machineID") if obj.get("machineID") is not None else '',
             "operatingSystem": obj.get("operatingSystem") if obj.get("operatingSystem") is not None else '',
             "osImage": obj.get("osImage") if obj.get("osImage") is not None else '',
+            "runningInUserNamespace": obj.get("runningInUserNamespace"),
             "swap": IoK8sApiCoreV1NodeSwapStatus.from_dict(obj["swap"]) if obj.get("swap") is not None else None,
             "systemUUID": obj.get("systemUUID") if obj.get("systemUUID") is not None else ''
         })

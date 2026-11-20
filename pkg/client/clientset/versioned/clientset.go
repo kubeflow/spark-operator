@@ -29,7 +29,7 @@ import (
 )
 
 type Interface interface {
-	Discovery() discovery.DiscoveryInterface
+	Discovery() discovery.DiscoveryInterfaces
 	SparkoperatorV1alpha1() sparkoperatorv1alpha1.SparkoperatorV1alpha1Interface
 	SparkoperatorV1beta2() sparkoperatorv1beta2.SparkoperatorV1beta2Interface
 }
@@ -52,7 +52,7 @@ func (c *Clientset) SparkoperatorV1beta2() sparkoperatorv1beta2.SparkoperatorV1b
 }
 
 // Discovery retrieves the DiscoveryClient
-func (c *Clientset) Discovery() discovery.DiscoveryInterface {
+func (c *Clientset) Discovery() discovery.DiscoveryInterfaces {
 	if c == nil {
 		return nil
 	}

@@ -38,7 +38,7 @@ from typing_extensions import Self
 
 class IoK8sApimachineryPkgRuntimeTypeMeta(BaseModel):
     """
-    TypeMeta is shared by all top level objects. The proper way to use it is to inline it in your type, like this:   type MyAwesomeAPIObject struct {       runtime.TypeMeta    `json:\",inline\"`       ... // other fields  }  func (obj *MyAwesomeAPIObject) SetGroupVersionKind(gvk *metav1.GroupVersionKind) { metav1.UpdateTypeMeta(obj,gvk) }; GroupVersionKind() *GroupVersionKind  TypeMeta is provided here for convenience. You may use it directly from this package or define your own with the same fields.
+    TypeMeta is shared by all top level objects. The proper way to use it is to inline it in your type, like this:   type MyAwesomeAPIObject struct {       runtime.TypeMeta    `json:\"\"`       ... // other fields  }  func (obj *MyAwesomeAPIObject) SetGroupVersionKind(gvk *metav1.GroupVersionKind) { metav1.UpdateTypeMeta(obj,gvk) }; GroupVersionKind() *GroupVersionKind  TypeMeta is provided here for convenience. You may use it directly from this package or define your own with the same fields.
     """ # noqa: E501
     api_version: Optional[StrictStr] = Field(default=None, alias="apiVersion")
     kind: Optional[StrictStr] = None

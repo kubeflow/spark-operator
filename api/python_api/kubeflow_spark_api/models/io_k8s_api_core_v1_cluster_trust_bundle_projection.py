@@ -31,7 +31,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_apis_meta_v1_label_selector import IoK8sApimachineryPkgApisMetaV1LabelSelector
 from typing import Optional, Set
@@ -46,7 +46,8 @@ class IoK8sApiCoreV1ClusterTrustBundleProjection(BaseModel):
     optional: Optional[StrictBool] = Field(default=None, description="If true, don't block pod startup if the referenced ClusterTrustBundle(s) aren't available.  If using name, then the named ClusterTrustBundle is allowed not to exist.  If using signerName, then the combination of signerName and labelSelector is allowed to match zero ClusterTrustBundles.")
     path: StrictStr = Field(description="Relative path from the volume root to write the bundle.")
     signer_name: Optional[StrictStr] = Field(default=None, description="Select all ClusterTrustBundles that match this signer name. Mutually-exclusive with name.  The contents of all selected ClusterTrustBundles will be unified and deduplicated.", alias="signerName")
-    __properties: ClassVar[List[str]] = ["labelSelector", "name", "optional", "path", "signerName"]
+    user: Optional[StrictInt] = Field(default=None, description="user is Optional: The owner UID of the created file. If specified, the item-level user field takes precedence over defaultUser. (Alpha) This field requires the AtomicWriteVolumeUserFields feature gate to be enabled.")
+    __properties: ClassVar[List[str]] = ["labelSelector", "name", "optional", "path", "signerName", "user"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -106,7 +107,8 @@ class IoK8sApiCoreV1ClusterTrustBundleProjection(BaseModel):
             "name": obj.get("name"),
             "optional": obj.get("optional"),
             "path": obj.get("path") if obj.get("path") is not None else '',
-            "signerName": obj.get("signerName")
+            "signerName": obj.get("signerName"),
+            "user": obj.get("user")
         })
         return _obj
 

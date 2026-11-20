@@ -24,7 +24,7 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// SparkConnects returns a SparkConnectInformer.
-	SparkConnects() SparkConnectInformer
+	SparkConnects() TypedSparkConnectInformer
 }
 
 type version struct {
@@ -38,7 +38,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// SparkConnects returns a SparkConnectInformer.
-func (v *version) SparkConnects() SparkConnectInformer {
+// SparkConnects returns a TypedSparkConnectInformer.
+func (v *version) SparkConnects() TypedSparkConnectInformer {
 	return &sparkConnectInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
