@@ -29,6 +29,7 @@ import (
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -360,7 +361,7 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 			app := old.DeepCopy()
 
 			r.submitSparkApplication(ctx, app)
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			if err := r.updateSparkApplicationStatus(ctx, old, app); err != nil {
 				return err
 			}
 			return nil
@@ -444,7 +445,7 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 				}
 			}
 
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			if err := r.updateSparkApplicationStatus(ctx, old, app); err != nil {
 				return err
 			}
 
@@ -500,7 +501,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 				r.recordSparkApplicationEvent(app)
 			}
 
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			if err := r.updateSparkApplicationStatus(ctx, old, app); err != nil {
 				return err
 			}
 			return nil
@@ -540,7 +541,7 @@ func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req c
 				return fmt.Errorf("failed to ensure driver PDB: %v", err)
 			}
 
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			if err := r.updateSparkApplicationStatus(ctx, old, app); err != nil {
 				return err
 			}
 
@@ -577,7 +578,7 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 			} else {
 				logger.Info("Resources associated with SparkApplication still exist")
 			}
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			if err := r.updateSparkApplicationStatus(ctx, old, app); err != nil {
 				return err
 			}
 			return nil
@@ -612,7 +613,7 @@ func (r *Reconciler) reconcileInvalidatingSparkApplication(ctx context.Context, 
 				r.resetSparkApplicationStatus(app)
 				app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
 			}
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			if err := r.updateSparkApplicationStatus(ctx, old, app); err != nil {
 				return err
 			}
 			return nil
@@ -650,7 +651,7 @@ func (r *Reconciler) reconcileSucceedingSparkApplication(ctx context.Context, re
 			} else {
 				app.Status.AppState.State = v1beta2.ApplicationStateCompleted
 			}
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			if err := r.updateSparkApplicationStatus(ctx, old, app); err != nil {
 				return err
 			}
 			return nil
@@ -700,7 +701,7 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 			} else {
 				app.Status.AppState.State = v1beta2.ApplicationStateFailed
 			}
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			if err := r.updateSparkApplicationStatus(ctx, old, app); err != nil {
 				return err
 			}
 			return nil
@@ -753,7 +754,7 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+	if err := r.updateSparkApplicationStatus(ctx, old, app); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
 
@@ -798,7 +799,7 @@ func (r *Reconciler) reconcileUnknownSparkApplication(ctx context.Context, req c
 			if err := r.updateSparkApplicationState(ctx, app); err != nil {
 				return err
 			}
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			if err := r.updateSparkApplicationStatus(ctx, old, app); err != nil {
 				return err
 			}
 			return nil
@@ -838,7 +839,7 @@ func (r *Reconciler) reconcileSuspendingSparkApplication(ctx context.Context, re
 			}
 			r.resetSparkApplicationStatus(app)
 
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			if err := r.updateSparkApplicationStatus(ctx, old, app); err != nil {
 				return err
 			}
 			return nil
@@ -878,7 +879,7 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 			} else {
 				logger.Info("Resources associated with SparkApplication still exist")
 			}
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			if err := r.updateSparkApplicationStatus(ctx, old, app); err != nil {
 				return err
 			}
 			return nil
@@ -909,7 +910,7 @@ func (r *Reconciler) reconcileResumingSparkApplication(ctx context.Context, req 
 			r.recordSparkApplicationEvent(app)
 
 			r.submitSparkApplication(ctx, app)
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			if err := r.updateSparkApplicationStatus(ctx, old, app); err != nil {
 				return err
 			}
 			return nil
@@ -935,7 +936,7 @@ func (r *Reconciler) transitionToSuspending(ctx context.Context, req ctrl.Reques
 			app := old.DeepCopy()
 
 			app.Status.AppState.State = v1beta2.ApplicationStateSuspending
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			if err := r.updateSparkApplicationStatus(ctx, old, app); err != nil {
 				return err
 			}
 
@@ -1232,8 +1233,11 @@ func (r *Reconciler) updateSparkApplicationState(ctx context.Context, app *v1bet
 	return nil
 }
 
-// updateSparkApplicationStatus updates the status of the SparkApplication.
-func (r *Reconciler) updateSparkApplicationStatus(ctx context.Context, app *v1beta2.SparkApplication) error {
+// updateSparkApplicationStatus updates the status of the SparkApplication if it differs from the old one.
+func (r *Reconciler) updateSparkApplicationStatus(ctx context.Context, old, app *v1beta2.SparkApplication) error {
+	if equality.Semantic.DeepEqual(old.Status, app.Status) {
+		return nil
+	}
 	if err := r.client.Status().Update(ctx, app); err != nil {
 		return err
 	}
