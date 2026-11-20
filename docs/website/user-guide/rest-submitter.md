@@ -44,12 +44,6 @@ Choose a submitter image whose Spark version matches the version your applicatio
 applications run several Spark versions, the operator cannot route them to different submitters.
 One operator sends every application to the single `submitter.serviceUrl`.
 
-The published submitter images are built on Spark 4.0.1. The submitter source builds against Spark
-4.1 and earlier only. Spark 4.2 moved to Jetty 12, so a submitter for Spark 4.2 or later needs
-source changes in the submitter project before it can be built.
-
-The published submitter images support `linux/amd64` only. On clusters with other node
-architectures, set `nodeSelector` with `kubernetes.io/arch: amd64` in `submitter-values.yaml`.
 
 ### Extra RBAC for the submitter
 
