@@ -52,6 +52,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/mutatingwebhookconfiguration"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/validatingwebhookconfiguration"
+	"github.com/kubeflow/spark-operator/v2/internal/metrics"
 	"github.com/kubeflow/spark-operator/v2/internal/webhook"
 	"github.com/kubeflow/spark-operator/v2/pkg/certificate"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -219,6 +220,7 @@ func start() {
 			BindAddress:   metricsBindAddress,
 			SecureServing: secureMetrics,
 			TLSOpts:       tlsOptions,
+			ExtraHandlers: metrics.ExtraHandlers(metricsEndpoint),
 		},
 		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
 			Port:     webhookPort,

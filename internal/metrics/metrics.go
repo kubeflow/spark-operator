@@ -16,8 +16,36 @@ limitations under the License.
 
 package metrics
 
-import "sigs.k8s.io/controller-runtime/pkg/log"
+import (
+	"net/http"
+	"strings"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
+)
+
+// defaultEndpoint is always served by the controller-runtime metrics server and cannot be overridden.
+const defaultEndpoint = "/metrics"
 
 var (
 	logger = log.Log.WithName("")
 )
+
+// ExtraHandlers returns the handlers that serve the metrics at a non-default endpoint.
+func ExtraHandlers(endpoint string) map[string]http.Handler {
+	if endpoint == "" {
+		return nil
+	}
+	if !strings.HasPrefix(endpoint, "/") {
+		endpoint = "/" + endpoint
+	}
+	if endpoint == defaultEndpoint {
+		return nil
+	}
+	return map[string]http.Handler{
+		endpoint: promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{
+			ErrorHandling: promhttp.HTTPErrorOnError,
+		}),
+	}
+}
