@@ -435,3 +435,25 @@ func loadSparkPi(name string) *v1beta2.SparkApplication {
 func loadSparkPiPython(name string) *v1beta2.SparkApplication {
 	return loadSparkApplication(filepath.Join("..", "..", "examples", "spark-pi-python.yaml"), name)
 }
+
+// loadSparkConnect parses the SparkConnect example at path and gives
+// the caller a fresh copy. We rename it per-test so two tests can run in the
+// same namespace without colliding.
+func loadSparkConnect(path, name string) *v1alpha1.SparkConnect {
+	conn := &v1alpha1.SparkConnect{}
+	file, err := os.Open(path)
+	Expect(err).NotTo(HaveOccurred())
+	defer func() {
+		_ = file.Close()
+	}()
+	Expect(yaml.NewYAMLOrJSONDecoder(file, 4096).Decode(conn)).NotTo(HaveOccurred())
+	conn.Name = name
+	conn.ResourceVersion = ""
+	conn.UID = ""
+	return conn
+}
+
+// loadSparkConnectCustomResource loads the canonical custom resource SparkConnect example.
+func loadSparkConnectCustomResource(name string) *v1alpha1.SparkConnect {
+	return loadSparkConnect(filepath.Join("..", "..", "examples", "sparkconnect", "spark-connect-custom-resource.yaml"), name)
+}
