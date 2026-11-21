@@ -357,6 +357,7 @@ func start() {
 			BindAddress:   metricsBindAddress,
 			SecureServing: secureMetrics,
 			TLSOpts:       tlsOptions,
+			ExtraHandlers: metrics.ExtraHandlers(metricsEndpoint),
 		},
 		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
 			TLSOpts: tlsOptions,
