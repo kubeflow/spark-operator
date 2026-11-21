@@ -307,6 +307,8 @@ spec:
 
 ### Default TLS and annotations
 
+TLS encrypts connections to the Spark UI but does not authenticate users or restrict access. Spark UI authentication is not enabled by default. We strongly recommend using a private Ingress that is accessible only from trusted networks, with authentication and access controls configured as described in the [Spark security documentation](https://spark.apache.org/docs/latest/security.html#web-ui).
+
 To configure Transport Layer Security (TLS) and annotations for Spark UI Ingresses, set `controller.uiIngress.tls` and `controller.uiIngress.annotations` in your Helm values file. For example:
 
 ```yaml
