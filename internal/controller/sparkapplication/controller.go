@@ -754,6 +754,11 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 	}
 
 	if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+		// The informer cache can lag behind the previous status update; requeue until it catches up.
+		if errors.IsConflict(err) {
+			logger.V(1).Info("Conflict updating SparkApplication status, requeueing", "state", app.Status.AppState.State)
+			return ctrl.Result{Requeue: true}, nil
+		}
 		return ctrl.Result{Requeue: true}, err
 	}
 
