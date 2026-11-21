@@ -1,0 +1,58 @@
+# Copyright The Kubeflow Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "AGENTS.md"
+
+reviews:
+  profile: quiet
+  in_progress_fortune: false
+  high_level_summary_in_walkthrough: true
+
+  auto_review:
+    labels:
+      - "!do-not-merge/work-in-progress"
+      - "!do-not-merge/hold"
+
+  # Linters already enforced by CI/pre-commit; avoid duplicate feedback.
+  tools:
+    golangci-lint:
+      enabled: false
+    shellcheck:
+      enabled: false
+
+  path_filters:
+    # Generated Go code (make generate, hack/update-codegen.sh).
+    - "!**/zz_generated.*.go"
+    - "!pkg/client/**"
+    # Generated API artifacts (OpenAPI spec, Python API models).
+    - "!api/openapi-spec/swagger.json"
+    - "!api/python_api/**"
+    # Generated CRD manifests (make manifests, make update-crd).
+    - "!config/crd/bases/**"
+    - "!charts/spark-operator-chart/crds/**"
+    # Generated docs (make build-api-docs, make helm-docs).
+    - "!docs/api-docs.md"
+    - "!charts/spark-operator-chart/README.md"
+    # Lock files.
+    - "!**/go.sum"
+    - "!**/uv.lock"
+    # Release changelog.
+    - "!CHANGELOG.md"
