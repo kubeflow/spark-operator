@@ -305,6 +305,43 @@ spec:
         kubernetes.io/ingress.class: nginx
 ```
 
+### Default TLS and annotations
+
+TLS encrypts connections to the Spark UI but does not authenticate users or restrict access. Spark UI authentication is not enabled by default. We strongly recommend using a private Ingress that is accessible only from trusted networks, with authentication and access controls configured as described in the [Spark security documentation](https://spark.apache.org/docs/latest/security.html#web-ui).
+
+To configure Transport Layer Security (TLS) and annotations for Spark UI Ingresses, set `controller.uiIngress.tls` and `controller.uiIngress.annotations` in your Helm values file. For example:
+
+```yaml
+controller:
+  uiService:
+    enable: true
+  uiIngress:
+    enable: true
+    urlFormat: "{{$appName}}.spark.example.com"
+    ingressClassName: nginx
+    tls:
+      - hosts:
+          - "*.spark.example.com"
+        secretName: spark-ui-tls
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+```
+
+Replace the domain, IngressClass name, and secret name to match your cluster, and pass the values file to `helm install` or `helm upgrade` with `-f`. Create the TLS Secret in each namespace where you run `SparkApplication`s: the operator creates each Ingress in its application's namespace. The certificate must cover the generated hostnames; this example uses a wildcard certificate for `*.spark.example.com`.
+
+The chart passes these defaults to the controller through the `--ingress-tls` and `--ingress-annotations` flags. For an individual application, a nonempty `spec.sparkUIOptions.ingressTLS` list replaces the default TLS list, and a nonempty `spec.sparkUIOptions.ingressAnnotations` map replaces the default annotations. The two fields resolve independently. Omitting a field or setting it to an empty list or map keeps the corresponding defaults.
+
+For example, a `SparkApplication` named `spark-pi` can use its own TLS Secret while inheriting the default annotations:
+
+```yaml
+spec:
+  sparkUIOptions:
+    ingressTLS:
+      - hosts:
+          - spark-pi.spark.example.com
+        secretName: spark-pi-tls
+```
+
 ## About the Mutating Admission Webhook
 
 The Kubernetes Operator for Apache Spark comes with an optional mutating admission webhook for customizing Spark driver and executor pods based on the specification in `SparkApplication` objects, e.g., mounting user-specified ConfigMaps and volumes, and setting pod affinity/anti-affinity, and adding tolerations.
