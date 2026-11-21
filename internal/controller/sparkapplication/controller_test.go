@@ -435,11 +435,12 @@ var _ = Describe("SparkApplication Controller", func() {
 
 		It("Should fail a SparkApplication when driver pod not found outside the grace period", func() {
 			By("Reconciling the created test SparkApplication")
+			recorder := events.NewFakeRecorder(3)
 			reconciler := sparkapplication.NewReconciler(
 				nil,
 				k8sClient.Scheme(),
 				k8sClient,
-				events.NewFakeRecorder(3),
+				recorder,
 				nil,
 				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}, DriverPodCreationGracePeriod: 0 * time.Second},
@@ -451,6 +452,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
 			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailing))
+			Expect(recorder.Events).To(Receive(Equal("Warning SparkDriverNotFound Driver pod non-existent-driver not found after grace period 0s, marking application as Failing")))
 		})
 	})
 
