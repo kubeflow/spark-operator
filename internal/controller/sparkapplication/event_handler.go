@@ -146,7 +146,7 @@ func (h *SparkPodEventHandler) enqueueSparkAppForUpdate(ctx context.Context, pod
 		return
 	}
 
-	queue.AddRateLimited(ctrl.Request{NamespacedName: key})
+	queue.Add(ctrl.Request{NamespacedName: key})
 }
 
 // EventHandler watches SparkApplication events.
@@ -172,7 +172,7 @@ func (h *EventHandler) Create(ctx context.Context, event event.CreateEvent, queu
 
 	logger := log.FromContext(ctx, "namespace", app.Namespace, "name", app.Name)
 	logger.Info("SparkApplication created")
-	queue.AddRateLimited(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
+	queue.Add(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
 
 	if h.metrics != nil {
 		h.metrics.HandleSparkApplicationCreate(app)
@@ -193,7 +193,7 @@ func (h *EventHandler) Update(ctx context.Context, event event.UpdateEvent, queu
 
 	logger := log.FromContext(ctx)
 	logger.Info("SparkApplication updated", "name", oldApp.Name, "namespace", oldApp.Namespace, "oldState", oldApp.Status.AppState.State, "newState", newApp.Status.AppState.State)
-	queue.AddRateLimited(ctrl.Request{NamespacedName: types.NamespacedName{Name: newApp.Name, Namespace: newApp.Namespace}})
+	queue.Add(ctrl.Request{NamespacedName: types.NamespacedName{Name: newApp.Name, Namespace: newApp.Namespace}})
 
 	if h.metrics != nil {
 		h.metrics.HandleSparkApplicationUpdate(oldApp, newApp)
@@ -209,7 +209,7 @@ func (h *EventHandler) Delete(ctx context.Context, event event.DeleteEvent, queu
 
 	logger := log.FromContext(ctx, "name", app.Name, "namespace", app.Namespace)
 	logger.Info("SparkApplication deleted", "state", app.Status.AppState.State)
-	queue.AddRateLimited(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
+	queue.Add(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
 
 	if h.metrics != nil {
 		h.metrics.HandleSparkApplicationDelete(app)
@@ -225,5 +225,5 @@ func (h *EventHandler) Generic(ctx context.Context, event event.GenericEvent, qu
 
 	logger := log.FromContext(ctx, "name", app.Name, "namespace", app.Namespace)
 	logger.Info("SparkApplication generic event", "state", app.Status.AppState.State)
-	queue.AddRateLimited(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
+	queue.Add(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
 }
