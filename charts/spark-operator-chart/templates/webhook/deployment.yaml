@@ -172,6 +172,9 @@ spec:
       {{- with .Values.webhook.priorityClassName }}
       priorityClassName: {{ . }}
       {{- end }}
+      {{- with .Values.webhook.schedulerName }}
+      schedulerName: {{ . | quote }}
+      {{- end }}
       serviceAccountName: {{ include "spark-operator.webhook.serviceAccountName" . }}
       automountServiceAccountToken: {{ .Values.webhook.serviceAccount.automountServiceAccountToken }}
       {{- with .Values.webhook.podSecurityContext }}

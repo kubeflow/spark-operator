@@ -24,9 +24,9 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// ScheduledSparkApplications returns a ScheduledSparkApplicationInformer.
-	ScheduledSparkApplications() ScheduledSparkApplicationInformer
+	ScheduledSparkApplications() TypedScheduledSparkApplicationInformer
 	// SparkApplications returns a SparkApplicationInformer.
-	SparkApplications() SparkApplicationInformer
+	SparkApplications() TypedSparkApplicationInformer
 }
 
 type version struct {
@@ -40,12 +40,12 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// ScheduledSparkApplications returns a ScheduledSparkApplicationInformer.
-func (v *version) ScheduledSparkApplications() ScheduledSparkApplicationInformer {
+// ScheduledSparkApplications returns a TypedScheduledSparkApplicationInformer.
+func (v *version) ScheduledSparkApplications() TypedScheduledSparkApplicationInformer {
 	return &scheduledSparkApplicationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// SparkApplications returns a SparkApplicationInformer.
-func (v *version) SparkApplications() SparkApplicationInformer {
+// SparkApplications returns a TypedSparkApplicationInformer.
+func (v *version) SparkApplications() TypedSparkApplicationInformer {
 	return &sparkApplicationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

@@ -1376,3 +1376,77 @@ func TestBuildSparkSubmitArgsSkipPodTemplates(t *testing.T) {
 // 		})
 // 	}
 // }
+
+func TestResolveImage(t *testing.T) {
+	tests := []struct {
+		name         string
+		sparkVersion string
+		image        string
+		expected     string
+	}{
+		{
+			name:         "placeholder replaced with application Spark version",
+			sparkVersion: "4.3.0",
+			image:        "apache/spark:{{SPARK_VERSION}}",
+			expected:     "apache/spark:4.3.0",
+		},
+		{
+			name:         "every placeholder replaced",
+			sparkVersion: "4.3.0",
+			image:        "registry/spark-{{SPARK_VERSION}}:{{SPARK_VERSION}}-python3",
+			expected:     "registry/spark-4.3.0:4.3.0-python3",
+		},
+		{
+			name:         "image without placeholder unchanged",
+			sparkVersion: "4.3.0",
+			image:        "apache/spark:4.2.1",
+			expected:     "apache/spark:4.2.1",
+		},
+		{
+			name:     "placeholder kept when Spark version is unset",
+			image:    "apache/spark:{{SPARK_VERSION}}",
+			expected: "apache/spark:{{SPARK_VERSION}}",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{SparkVersion: tc.sparkVersion}}
+			assert.Equal(t, tc.expected, resolveImage(app, tc.image))
+		})
+	}
+}
+
+func TestBuildSparkSubmitArgsResolvesSparkVersionInImages(t *testing.T) {
+	t.Setenv("KUBERNETES_SERVICE_HOST", "127.0.0.1")
+	t.Setenv("KUBERNETES_SERVICE_PORT", "6443")
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{Name: "spark-version-image", Namespace: "default"},
+		Spec: v1beta2.SparkApplicationSpec{
+			Type:                v1beta2.SparkApplicationTypeScala,
+			Mode:                v1beta2.DeployModeCluster,
+			SparkVersion:        "4.3.0",
+			Image:               ptr.To("apache/spark:{{SPARK_VERSION}}"),
+			MainClass:           ptr.To("org.apache.spark.examples.SparkPi"),
+			MainApplicationFile: ptr.To("local:///opt/spark/examples/jars/spark-examples.jar"),
+			SparkConf: map[string]string{
+				"spark.kubernetes.executor.container.image": "registry/executor:{{SPARK_VERSION}}",
+				"spark.executor.extraJavaOptions":           "-Dversion={{SPARK_VERSION}}",
+			},
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{Image: ptr.To("registry/driver:{{SPARK_VERSION}}")},
+			},
+		},
+	}
+
+	args, err := buildSparkSubmitArgs(app, true)
+	assert.NoError(t, err)
+
+	assert.Contains(t, args, common.SparkKubernetesContainerImage+"=apache/spark:4.3.0")
+	assert.Contains(t, args, common.SparkKubernetesDriverContainerImage+"=registry/driver:4.3.0")
+	assert.Contains(t, args, common.SparkKubernetesExecutorContainerImage+"=apache/spark:4.3.0")
+	assert.Contains(t, args, "spark.kubernetes.executor.container.image=registry/executor:4.3.0")
+	assert.Contains(t, args, "spark.executor.extraJavaOptions=-Dversion={{SPARK_VERSION}}",
+		"only container image properties are resolved")
+}

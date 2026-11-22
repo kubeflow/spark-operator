@@ -18,24 +18,57 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 14
 
   - package-ecosystem: "gomod"
     directory: "/test/e2e"
     schedule:
       interval: "weekly"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 14
 
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 14
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 14
 
   - package-ecosystem: "uv"
     directory: "/docs/website"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 0 # security update PRs only
+

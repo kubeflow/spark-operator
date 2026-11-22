@@ -239,7 +239,7 @@ func imageOption(app *v1beta2.SparkApplication) ([]string, error) {
 	if app.Spec.Image != nil && *app.Spec.Image != "" {
 		args = append(args,
 			"--conf",
-			fmt.Sprintf("%s=%s", common.SparkKubernetesContainerImage, *app.Spec.Image),
+			fmt.Sprintf("%s=%s", common.SparkKubernetesContainerImage, resolveImage(app, *app.Spec.Image)),
 		)
 	}
 
@@ -259,6 +259,22 @@ func imageOption(app *v1beta2.SparkApplication) ([]string, error) {
 	}
 
 	return args, nil
+}
+
+// sparkVersionPlaceholder is otherwise replaced by Spark with the version of the submitting
+// Spark (the operator image or REST submitter), not the version the application runs.
+const sparkVersionPlaceholder = "{{SPARK_VERSION}}"
+
+// resolveImage replaces the Spark version placeholder in an image with the application's Spark version.
+func resolveImage(app *v1beta2.SparkApplication, image string) string {
+	if app.Spec.SparkVersion == "" {
+		return image
+	}
+	return strings.ReplaceAll(image, sparkVersionPlaceholder, app.Spec.SparkVersion)
+}
+
+func isContainerImageConf(key string) bool {
+	return strings.HasPrefix(key, "spark.kubernetes.") && strings.HasSuffix(key, "container.image")
 }
 
 func pythonVersionOption(app *v1beta2.SparkApplication) ([]string, error) {
@@ -300,9 +316,13 @@ func sparkConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 	// Add Spark configuration properties.
 	for key, value := range app.Spec.SparkConf {
 		// Configuration property for the driver pod name has already been set.
-		if key != common.SparkKubernetesDriverPodName {
-			args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
+		if key == common.SparkKubernetesDriverPodName {
+			continue
 		}
+		if isContainerImageConf(key) {
+			value = resolveImage(app, value)
+		}
+		args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
 	}
 	return args, nil
 }
@@ -349,10 +369,10 @@ func driverConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 	if app.Spec.Driver.Image != nil && *app.Spec.Driver.Image != "" {
 		args = append(args, "--conf",
-			fmt.Sprintf("%s=%s", common.SparkKubernetesDriverContainerImage, *app.Spec.Driver.Image))
+			fmt.Sprintf("%s=%s", common.SparkKubernetesDriverContainerImage, resolveImage(app, *app.Spec.Driver.Image)))
 	} else if app.Spec.Image != nil && *app.Spec.Image != "" {
 		args = append(args, "--conf",
-			fmt.Sprintf("%s=%s", common.SparkKubernetesDriverContainerImage, *app.Spec.Image))
+			fmt.Sprintf("%s=%s", common.SparkKubernetesDriverContainerImage, resolveImage(app, *app.Spec.Image)))
 	}
 
 	if app.Spec.Driver.Cores != nil {
@@ -727,10 +747,10 @@ func executorConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 	if app.Spec.Executor.Image != nil && *app.Spec.Executor.Image != "" {
 		args = append(args, "--conf",
-			fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorContainerImage, *app.Spec.Executor.Image))
+			fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorContainerImage, resolveImage(app, *app.Spec.Executor.Image)))
 	} else if app.Spec.Image != nil && *app.Spec.Image != "" {
 		args = append(args, "--conf",
-			fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorContainerImage, *app.Spec.Image))
+			fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorContainerImage, resolveImage(app, *app.Spec.Image)))
 	}
 
 	if app.Spec.Executor.Cores != nil {

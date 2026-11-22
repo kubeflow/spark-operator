@@ -42,8 +42,9 @@ class IoK8sApiCoreV1ProjectedVolumeSource(BaseModel):
     Represents a projected volume source
     """ # noqa: E501
     default_mode: Optional[StrictInt] = Field(default=None, description="defaultMode are the mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.", alias="defaultMode")
+    default_user: Optional[StrictInt] = Field(default=None, description="defaultUser is Optional: The owner UID of the created files by default. The defaultUser field is only used as a fallback when the item-level user field is unset. (Alpha) This field requires the AtomicWriteVolumeUserFields feature gate to be enabled.", alias="defaultUser")
     sources: Optional[List[IoK8sApiCoreV1VolumeProjection]] = Field(default=None, description="sources is the list of volume projections. Each entry in this list handles one source.")
-    __properties: ClassVar[List[str]] = ["defaultMode", "sources"]
+    __properties: ClassVar[List[str]] = ["defaultMode", "defaultUser", "sources"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -104,6 +105,7 @@ class IoK8sApiCoreV1ProjectedVolumeSource(BaseModel):
 
         _obj = cls.model_validate({
             "defaultMode": obj.get("defaultMode"),
+            "defaultUser": obj.get("defaultUser"),
             "sources": [IoK8sApiCoreV1VolumeProjection.from_dict(_item) for _item in obj["sources"]] if obj.get("sources") is not None else None
         })
         return _obj

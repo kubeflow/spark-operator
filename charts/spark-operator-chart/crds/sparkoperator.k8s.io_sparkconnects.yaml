@@ -18,7 +18,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     api-approved.kubernetes.io: https://github.com/kubeflow/spark-operator/pull/1298
-    controller-gen.kubebuilder.io/version: v0.20.1
+    controller-gen.kubebuilder.io/version: v0.23.0
   name: sparkconnects.sparkoperator.k8s.io
 spec:
   group: sparkoperator.k8s.io

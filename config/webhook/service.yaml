@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Service exposes the webhook server to the Kubernetes API server, which calls it for
+# pod CREATE admission, SparkApplication/ScheduledSparkApplication/SparkConnect admission,
+# and CRD conversion.
 apiVersion: v1
 kind: Service
 metadata:

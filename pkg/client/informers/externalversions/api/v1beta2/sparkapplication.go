@@ -27,16 +27,45 @@ import (
 	apiv1beta2 "github.com/kubeflow/spark-operator/v2/pkg/client/listers/api/v1beta2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 )
 
 // SparkApplicationInformer provides access to a shared informer and lister for
-// SparkApplications.
+// SparkApplications. Prefer using the type-safe variant (see [TypedSparkApplicationInformer]).
 type SparkApplicationInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() apiv1beta2.SparkApplicationLister
 }
+
+// TypedSparkApplicationInformer provides access to a shared informer and lister for
+// SparkApplications, including the type-safe TypedInformer variant.
+// It is a superset of SparkApplicationInformer.
+type TypedSparkApplicationInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() SparkApplicationIndexInformer
+	Lister() apiv1beta2.SparkApplicationLister
+}
+
+// SparkApplicationIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type SparkApplicationIndexInformer cache.TypedSharedIndexInformer[*v2apiv1beta2.SparkApplication]
+
+// SparkApplicationHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for SparkApplication.
+type SparkApplicationHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*v2apiv1beta2.SparkApplication]
+
+// SparkApplicationDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for SparkApplication.
+type SparkApplicationDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*v2apiv1beta2.SparkApplication]
+
+// SparkApplicationFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for SparkApplication.
+type SparkApplicationFilteringHandler = cache.TypedFilteringResourceEventHandler[*v2apiv1beta2.SparkApplication]
+
+// SparkApplicationIndexers is a specialization of [cache.TypedIndexers] for SparkApplication.
+type SparkApplicationIndexers = cache.TypedIndexers[*v2apiv1beta2.SparkApplication]
+
+// DeletedSparkApplication is a specialization of [cache.DeletedObject] for SparkApplication.
+type DeletedSparkApplication = cache.DeletedObject[*v2apiv1beta2.SparkApplication]
 
 type sparkApplicationInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -47,55 +76,132 @@ type sparkApplicationInformer struct {
 // NewSparkApplicationInformer constructs a new informer for SparkApplication type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedSparkApplicationInformer]).
 func NewSparkApplicationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredSparkApplicationInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewSparkApplicationInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedSparkApplicationInformer constructs a new informer for SparkApplication type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedSparkApplicationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers SparkApplicationIndexers) SparkApplicationIndexInformer {
+	return NewTypedSparkApplicationInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredSparkApplicationInformer constructs a new informer for SparkApplication type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredSparkApplicationInformer]).
 func NewFilteredSparkApplicationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return cache.NewSharedIndexInformer(
+	return NewTypedSparkApplicationInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredSparkApplicationInformer constructs a new informer for SparkApplication type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredSparkApplicationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers SparkApplicationIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) SparkApplicationIndexInformer {
+	return NewTypedSparkApplicationInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
+}
+
+// NewSparkApplicationInformerWithOptions constructs a new informer for SparkApplication type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedSparkApplicationInformerWithOptions]).
+func NewSparkApplicationInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedSparkApplicationInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedSparkApplicationInformerWithOptions constructs a new informer for SparkApplication type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedSparkApplicationInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) SparkApplicationIndexInformer {
+	gvr := schema.GroupVersionResource{Group: "sparkoperator.k8s.io", Version: "v1beta2", Resource: "sparkapplications"}
+	identifier := options.InformerName.WithResource(gvr)
+	tweakListOptions := options.TweakListOptions
+	return cache.NewTypedSharedIndexInformer[*v2apiv1beta2.SparkApplication](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.SparkoperatorV1beta2().SparkApplications(namespace).List(context.Background(), options)
+				return client.SparkoperatorV1beta2().SparkApplications(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.SparkoperatorV1beta2().SparkApplications(namespace).Watch(context.Background(), options)
+				return client.SparkoperatorV1beta2().SparkApplications(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.SparkoperatorV1beta2().SparkApplications(namespace).List(ctx, options)
+				return client.SparkoperatorV1beta2().SparkApplications(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.SparkoperatorV1beta2().SparkApplications(namespace).Watch(ctx, options)
+				return client.SparkoperatorV1beta2().SparkApplications(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&v2apiv1beta2.SparkApplication{},
-		resyncPeriod,
-		indexers,
-	)
+		cache.SharedIndexInformerOptions{
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
+			Identifier:   identifier,
+		},
+	))
 }
 
 func (f *sparkApplicationInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredSparkApplicationInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewTypedSparkApplicationInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *sparkApplicationInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&v2apiv1beta2.SparkApplication{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *sparkApplicationInformer) TypedInformer() SparkApplicationIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*v2apiv1beta2.SparkApplication](f.factory.InformerFor(&v2apiv1beta2.SparkApplication{}, f.defaultInformer))
 }
 
 func (f *sparkApplicationInformer) Lister() apiv1beta2.SparkApplicationLister {
 	return apiv1beta2.NewSparkApplicationLister(f.Informer().GetIndexer())
+}
+
+// ToTypedSparkApplicationInformer converts an untyped informer into a TypedSparkApplicationInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *SparkApplication. If that is not the case, calling type-safe methods of the returned
+// TypedSparkApplicationInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedSparkApplicationInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedSparkApplicationInformer(informer SparkApplicationInformer) TypedSparkApplicationInformer {
+	if informer, ok := informer.(TypedSparkApplicationInformer); ok {
+		return informer
+	}
+	return &sparkApplicationTypedInformerAdapter{informer}
+}
+
+type sparkApplicationTypedInformerAdapter struct {
+	SparkApplicationInformer
+}
+
+func (a *sparkApplicationTypedInformerAdapter) TypedInformer() SparkApplicationIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*v2apiv1beta2.SparkApplication](a.Informer())
+}
+
+// ToSparkApplicationIndexInformer converts an untyped informer into a SparkApplicationIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *SparkApplication. If that is not the case, calling type-safe methods of the returned
+// SparkApplicationIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a SparkApplicationIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToSparkApplicationIndexInformer(informer cache.SharedIndexInformer) SparkApplicationIndexInformer {
+	if informer, ok := informer.(SparkApplicationIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*v2apiv1beta2.SparkApplication](informer)
 }

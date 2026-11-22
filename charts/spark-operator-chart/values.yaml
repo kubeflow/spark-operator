@@ -251,6 +251,10 @@ controller:
   # -- Priority class for controller pods.
   priorityClassName: ""
 
+  # -- Name of the scheduler used to schedule controller pods.
+  # If not specified, the default scheduler will be used.
+  schedulerName: ""
+
   # -- Security context for controller pods.
   podSecurityContext:
     fsGroup: 185
@@ -469,6 +473,10 @@ webhook:
 
   # -- Priority class for webhook pods.
   priorityClassName: ""
+
+  # -- Name of the scheduler used to schedule webhook pods.
+  # If not specified, the default scheduler will be used.
+  schedulerName: ""
 
   # -- Security context for webhook pods.
   podSecurityContext:

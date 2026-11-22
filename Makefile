@@ -59,10 +59,10 @@ KIND_KUBE_CONFIG ?= $(CURDIR)/.kube/config
 LOCALBIN ?= $(shell pwd)/bin
 
 ## Versions
-CONTROLLER_TOOLS_VERSION ?= v0.20.1
-KIND_VERSION ?= v0.31.0
-KIND_K8S_VERSION ?= v1.35.0
-ENVTEST_VERSION ?= release-0.20
+CONTROLLER_TOOLS_VERSION ?= v0.23.0
+KIND_VERSION ?= v0.33.0
+KIND_K8S_VERSION ?= v1.37.0
+ENVTEST_VERSION ?= release-0.25
 # ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
 ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
 GOLANGCI_LINT_VERSION ?= v2.1.6
@@ -70,7 +70,7 @@ GEN_CRD_API_REFERENCE_DOCS_VERSION ?= v0.3.0
 HELM_VERSION ?= $(shell grep -e '^[[:space:]]*helm.sh/helm/v3 v' test/e2e/go.mod | cut -d ' ' -f 2)
 HELM_UNITTEST_VERSION ?= 0.8.2
 HELM_DOCS_VERSION ?= v1.14.2
-CODE_GENERATOR_VERSION ?= v0.35.4
+CODE_GENERATOR_VERSION ?= v0.37.1
 SHFMT_VERSION ?= v3.13.1
 SHELLCHECK_VERSION ?= v0.11.0
 
