@@ -21,49 +21,32 @@ REST submission is an alpha feature. Enable the `RestSubmitter` feature gate to 
 
 ## Limitations
 
-The submitter builds the driver pod with the Spark libraries in its own image, not the Spark in the
-operator image or the application image. It also uses its own service account. Several differences
-from `spark-submit` follow from this.
+The submitter creates the driver pod with its own Spark libraries and service account, not those of
+the operator or the application. Several differences from `spark-submit` follow.
 
 ### The submitter's Spark version decides the driver pod
 
 Spark settings that apply when the driver pod is created only work if the submitter's Spark
-version supports them. Settings that the driver reads at runtime are not affected. For example, a
-submitter built on Spark 4.0 ignores these settings for an application that runs Spark 4.3:
+version supports them. Settings that the driver reads at runtime are not affected. If the submitter
+runs an older Spark version than your applications, newer driver pod settings and resources are not
+applied. The driver pod's `spark-version` label also shows the submitter's Spark version.
 
-| Behavior | Added in | With a Spark 4.0 submitter |
-| --- | --- | --- |
-| `spark.kubernetes.driver.pod.excludedFeatureSteps` | 4.1 | Ignored |
-| Per-application `NetworkPolicy` for executor pods | 4.2 | Not created |
-| `spark.kubernetes.driver.securityContext.allowPrivilegeEscalation` (defaults to `false`) | 4.3 | Not set on the driver container |
-| `spark.kubernetes.driver.service.publishNotReadyAddresses` | 4.3 | Ignored |
-
-The driver pod's `spark-version` label also shows the submitter's Spark version.
-
-Choose a submitter image whose Spark version matches the version your applications run. If your
-applications run several Spark versions, the operator cannot route them to different submitters.
-One operator sends every application to the single `submitter.serviceUrl`.
-
+Choose a submitter image whose Spark version matches the version your applications run. One
+operator sends every application to a single `submitter.serviceUrl`, so it cannot route
+applications on different Spark versions to different submitters.
 
 ### Extra RBAC for the submitter
 
-The submitter chart grants its service account access to `pods`, `configmaps`, and `services` only.
-Spark creates other resources with the submitter's service account:
+The submitter chart grants its service account only the access needed to create a basic driver pod.
+Spark creates any other Kubernetes resources an application needs with the submitter's service
+account. Depending on the submitter's Spark version and your application settings, these can include
+persistent volume claims, secrets, or network policies.
 
-| When | Resource |
-| --- | --- |
-| Every application, if the submitter is built on Spark 4.2 or later | `networkpolicies` (API group `networking.k8s.io`) |
-| `OnDemand` persistent volume claims (`spark.kubernetes.driver.volumes.persistentVolumeClaim.*.options.claimName=OnDemand`) | `persistentvolumeclaims` |
-| Kerberos delegation tokens | `secrets` |
+Without access, the submission fails with a `forbidden` error. The operator tries the submission up
+to `--submitter-max-retries` times (3 by default), then marks the application failed, with the
+`forbidden` message in its status.
 
-Spark 4.2 and later create a `NetworkPolicy` for the executors of every application. Without the
-`networkpolicies` rule, every submission fails with a submitter built on these versions.
-
-Without access, the submission fails with a `forbidden` error after the driver pod is created. The
-submitter then deletes the pod. It reports the failure as a retryable `INTERNAL_SERVER_ERROR`, so the
-operator makes up to `--submitter-max-retries` attempts (3 by default) before it marks the
-application failed. The `forbidden` message appears in the application's status. Grant the access
-in each job namespace:
+Check which resources your applications create and grant them in each job namespace. For example:
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -115,9 +98,8 @@ Prefer dependencies that are built into the application image or referenced with
 - Only `cluster` deploy mode is supported.
 - The controller does not start until the submitter is reachable, up to
   `--submitter-startup-timeout` (5 minutes by default).
-- The submitter serves plain HTTP by default. If `jobNamespaces` is empty, the chart grants it
-  cluster-wide access to create pods. Set `jobNamespaces`, [enable mTLS](#enable-mtls), and restrict
-  ingress to the submitter Service to the operator.
+- The submitter serves plain HTTP with cluster-wide RBAC by default. See `jobNamespaces` in
+  [Deploy the submitter service](#deploy-the-submitter-service) and [Enable mTLS](#enable-mtls).
 
 ## Prerequisites
 
