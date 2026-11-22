@@ -325,12 +325,12 @@ func start() {
 
 	// Create the client rest config. Use kubeConfig if given, otherwise assume in-cluster.
 	cfg, err := ctrl.GetConfig()
-	cfg.WarningHandler = rest.NoWarnings{}
 	if err != nil {
 		logger.Error(err, "failed to get kube config")
 		os.Exit(1)
 	}
 
+	cfg.WarningHandler = rest.NoWarnings{}
 	cfg.QPS = kubeAPIQPS
 	cfg.Burst = kubeAPIBurst
 
