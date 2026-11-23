@@ -2538,3 +2538,370 @@ func TestPatchSparkPod_MemoryLimit(t *testing.T) {
 	assert.NotEqual(t, expectedExecutorMemoryRequest.String(), expectedExecutorMemoryLimit.String())
 
 }
+
+func TestPatchSparkPod_Labels(t *testing.T) {
+	// new label from SparkApplication is added to pod.
+	t.Run("new application label is added", func(t *testing.T) {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-test",
+				UID:  "spark-test-1",
+				Labels: map[string]string{
+					"team": "platform",
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-executor",
+				Labels: map[string]string{
+					common.LabelSparkRole:               common.SparkRoleExecutor,
+					common.LabelLaunchedBySparkOperator: "true",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: common.SparkExecutorContainerName, Image: "spark:latest"},
+				},
+			},
+		}
+		modifiedPod, err := getModifiedPod(pod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "platform", modifiedPod.Labels["team"])
+	})
+
+	// stale pod label is overwritten with the current SparkApplication value.
+	t.Run("updated application label overwrites stale pod label", func(t *testing.T) {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-test",
+				UID:  "spark-test-1",
+				Labels: map[string]string{
+					"user": "bob",
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-executor",
+				Labels: map[string]string{
+					common.LabelSparkRole:               common.SparkRoleExecutor,
+					common.LabelLaunchedBySparkOperator: "true",
+					"user":                              "alice", // stale value
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: common.SparkExecutorContainerName, Image: "spark:latest"},
+				},
+			},
+		}
+		modifiedPod, err := getModifiedPod(pod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "bob", modifiedPod.Labels["user"])
+	})
+
+	// unrelated pod labels are not deleted.
+	t.Run("unrelated pod label is preserved", func(t *testing.T) {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-test",
+				UID:  "spark-test-1",
+				Labels: map[string]string{
+					"user": "bob",
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-executor",
+				Labels: map[string]string{
+					common.LabelSparkRole:               common.SparkRoleExecutor,
+					common.LabelLaunchedBySparkOperator: "true",
+					"pod-only":                          "preserve-me",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: common.SparkExecutorContainerName, Image: "spark:latest"},
+				},
+			},
+		}
+		modifiedPod, err := getModifiedPod(pod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "preserve-me", modifiedPod.Labels["pod-only"])
+		assert.Equal(t, "bob", modifiedPod.Labels["user"])
+	})
+
+	// multiple SparkApplication labels are all propagated.
+	t.Run("multiple application labels are propagated", func(t *testing.T) {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-test",
+				UID:  "spark-test-1",
+				Labels: map[string]string{
+					"user": "bob",
+					"team": "platform",
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-executor",
+				Labels: map[string]string{
+					common.LabelSparkRole:               common.SparkRoleExecutor,
+					common.LabelLaunchedBySparkOperator: "true",
+					"user":                              "alice",
+					"pod-only":                          "preserve-me",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: common.SparkExecutorContainerName, Image: "spark:latest"},
+				},
+			},
+		}
+		modifiedPod, err := getModifiedPod(pod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "bob", modifiedPod.Labels["user"])
+		assert.Equal(t, "platform", modifiedPod.Labels["team"])
+		assert.Equal(t, "preserve-me", modifiedPod.Labels["pod-only"])
+	})
+
+	// kueue.x-k8s.io/* labels on the SparkApplication are NOT propagated.
+	t.Run("kueue labels on SparkApplication are not propagated", func(t *testing.T) {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-test",
+				UID:  "spark-test-1",
+				Labels: map[string]string{
+					"environment":                  "production",
+					"kueue.x-k8s.io/queue-name":    "high-priority",
+					"kueue.x-k8s.io/workload-name": "wl-123",
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-executor",
+				Labels: map[string]string{
+					common.LabelSparkRole:               common.SparkRoleExecutor,
+					common.LabelLaunchedBySparkOperator: "true",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: common.SparkExecutorContainerName, Image: "spark:latest"},
+				},
+			},
+		}
+		modifiedPod, err := getModifiedPod(pod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "production", modifiedPod.Labels["environment"])
+		assert.NotContains(t, modifiedPod.Labels, "kueue.x-k8s.io/queue-name")
+		assert.NotContains(t, modifiedPod.Labels, "kueue.x-k8s.io/workload-name")
+	})
+
+	// a kueue label already present on the pod is not overwritten even when the
+	// SparkApplication carries a conflicting value for the same key.
+	t.Run("existing kueue label on pod is not overwritten by SparkApplication kueue label", func(t *testing.T) {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-test",
+				UID:  "spark-test-1",
+				Labels: map[string]string{
+					"environment":               "production",
+					"kueue.x-k8s.io/queue-name": "new-queue", // conflicting value on SparkApplication
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-executor",
+				Labels: map[string]string{
+					common.LabelSparkRole:               common.SparkRoleExecutor,
+					common.LabelLaunchedBySparkOperator: "true",
+					"kueue.x-k8s.io/queue-name":         "existing-queue",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: common.SparkExecutorContainerName, Image: "spark:latest"},
+				},
+			},
+		}
+		modifiedPod, err := getModifiedPod(pod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "production", modifiedPod.Labels["environment"])
+		// The pod's existing Kueue label must not be overwritten by the SparkApplication value.
+		assert.Equal(t, "existing-queue", modifiedPod.Labels["kueue.x-k8s.io/queue-name"])
+	})
+
+	// addLabels initializes a nil pod.Labels map safely (no panic).
+	// We test this by calling addLabels directly with a pod whose Labels is nil.
+	t.Run("nil pod label map is initialized safely", func(t *testing.T) {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-test",
+				UID:  "spark-test-1",
+				Labels: map[string]string{
+					"team": "platform",
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "spark-executor",
+				Labels: nil,
+			},
+		}
+		// Call addLabels directly — should not panic.
+		err := addLabels(pod, app)
+		assert.NoError(t, err)
+		assert.NotNil(t, pod.Labels)
+		assert.Equal(t, "platform", pod.Labels["team"])
+	})
+	// executor-specific label takes precedence over SparkApplication metadata label.
+	t.Run("executor specific label takes precedence over metadata label", func(t *testing.T) {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-test",
+				UID:  "spark-test-1",
+				Labels: map[string]string{
+					"team": "platform", // metadata value
+				},
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				Executor: v1beta2.ExecutorSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						Labels: map[string]string{
+							"team": "data-processing", // executor-specific override
+						},
+					},
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-executor",
+				Labels: map[string]string{
+					common.LabelSparkRole:               common.SparkRoleExecutor,
+					common.LabelLaunchedBySparkOperator: "true",
+					"team":                              "data-processing", // Spark already applied executor label
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: common.SparkExecutorContainerName, Image: "spark:latest"},
+				},
+			},
+		}
+		modifiedPod, err := getModifiedPod(pod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Executor-specific label must win; metadata "platform" must not overwrite it.
+		assert.Equal(t, "data-processing", modifiedPod.Labels["team"])
+	})
+
+	// driver-specific label takes precedence over SparkApplication metadata label.
+	t.Run("driver specific label takes precedence over metadata label", func(t *testing.T) {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-test",
+				UID:  "spark-test-1",
+				Labels: map[string]string{
+					"team": "platform", // metadata value
+				},
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				Driver: v1beta2.DriverSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						Labels: map[string]string{
+							"team": "driver-team", // driver-specific override
+						},
+					},
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-driver",
+				Labels: map[string]string{
+					common.LabelSparkRole:               common.SparkRoleDriver,
+					common.LabelLaunchedBySparkOperator: "true",
+					"team":                              "driver-team", // Spark already applied driver label
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: common.SparkDriverContainerName, Image: "spark:latest"},
+				},
+			},
+		}
+		modifiedPod, err := getModifiedPod(pod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Driver-specific label must win; metadata "platform" must not overwrite it.
+		assert.Equal(t, "driver-team", modifiedPod.Labels["team"])
+	})
+
+	// metadata label still propagates when the same key is NOT in spec.executor.labels.
+	t.Run("metadata label propagates when key absent from executor spec labels", func(t *testing.T) {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-test",
+				UID:  "spark-test-1",
+				Labels: map[string]string{
+					"user": "bob", // updated metadata
+				},
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				Executor: v1beta2.ExecutorSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						Labels: map[string]string{
+							"env": "prod", // different key — no conflict
+						},
+					},
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-executor",
+				Labels: map[string]string{
+					common.LabelSparkRole:               common.SparkRoleExecutor,
+					common.LabelLaunchedBySparkOperator: "true",
+					"user":                              "alice", // stale value
+					"env":                               "prod",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: common.SparkExecutorContainerName, Image: "spark:latest"},
+				},
+			},
+		}
+		modifiedPod, err := getModifiedPod(pod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// "user" is not in spec.executor.labels, so metadata wins and stale value is updated.
+		assert.Equal(t, "bob", modifiedPod.Labels["user"])
+		// "env" is in spec.executor.labels, so it is left as-is.
+		assert.Equal(t, "prod", modifiedPod.Labels["env"])
+	})
+}
