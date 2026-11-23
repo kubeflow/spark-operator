@@ -53,7 +53,7 @@ DEPLOY_METHOD ?= helm
 # Kind cluster
 KIND_CLUSTER_NAME ?= spark-operator
 KIND_CONFIG_FILE ?= charts/spark-operator-chart/ci/kind-config.yaml
-KIND_KUBE_CONFIG ?= $(HOME)/.kube/config
+KIND_KUBE_CONFIG ?= $(CURDIR)/.kube/config
 
 ## Location to install binaries
 LOCALBIN ?= $(shell pwd)/bin
