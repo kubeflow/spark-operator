@@ -20,6 +20,7 @@ import (
 	"context"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -77,19 +78,33 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 	oldApp, ok := e.ObjectOld.(*v1beta2.ScheduledSparkApplication)
 	if ok && newApp.Status.ScheduleState == v1beta2.ScheduleStateScheduled &&
 		(oldApp.Spec.Schedule != newApp.Spec.Schedule || oldApp.Spec.TimeZone != newApp.Spec.TimeZone) {
-		// The Scheduled state keeps status.nextRun, so send the app back to New to recompute it from the new schedule.
-		app := newApp.DeepCopy()
-		app.Status.ScheduleState = v1beta2.ScheduleStateNew
-		app.Status.NextRun = metav1.Time{}
-		f.logger.Info("Schedule changed, recomputing next run", "name", app.Name, "namespace", app.Namespace,
-			"oldSchedule", oldApp.Spec.Schedule, "newSchedule", app.Spec.Schedule,
-			"oldTimeZone", oldApp.Spec.TimeZone, "newTimeZone", app.Spec.TimeZone)
-		if err := f.client.Status().Update(context.TODO(), app); err != nil {
-			f.logger.Error(err, "Failed to reset ScheduledSparkApplication status after schedule change", "name", app.Name, "namespace", app.Namespace)
+		f.logger.Info("Schedule changed, recomputing next run", "name", newApp.Name, "namespace", newApp.Namespace,
+			"oldSchedule", oldApp.Spec.Schedule, "newSchedule", newApp.Spec.Schedule,
+			"oldTimeZone", oldApp.Spec.TimeZone, "newTimeZone", newApp.Spec.TimeZone)
+		if err := f.resetNextRun(newApp); err != nil {
+			f.logger.Error(err, "Failed to reset ScheduledSparkApplication status after schedule change", "name", newApp.Name, "namespace", newApp.Namespace)
 		}
 	}
 
 	return true
+}
+
+// resetNextRun sends a Scheduled app back to New so that status.nextRun is recomputed from the edited schedule.
+func (f *EventFilter) resetNextRun(edited *v1beta2.ScheduledSparkApplication) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		app := &v1beta2.ScheduledSparkApplication{}
+		if err := f.client.Get(context.TODO(), client.ObjectKeyFromObject(edited), app); err != nil {
+			return err
+		}
+		// A later edit gets its own event, and any other state already recomputes nextRun.
+		if app.Status.ScheduleState != v1beta2.ScheduleStateScheduled ||
+			app.Spec.Schedule != edited.Spec.Schedule || app.Spec.TimeZone != edited.Spec.TimeZone {
+			return nil
+		}
+		app.Status.ScheduleState = v1beta2.ScheduleStateNew
+		app.Status.NextRun = metav1.Time{}
+		return f.client.Status().Update(context.TODO(), app)
+	})
 }
 
 // Delete implements predicate.Predicate.
