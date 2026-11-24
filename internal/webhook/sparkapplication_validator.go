@@ -125,6 +125,11 @@ func (v *SparkApplicationValidator) ValidateDelete(ctx context.Context, app *v1b
 }
 
 func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1beta2.SparkApplication) error {
+	return v.validateSpecWithPath(ctx, app, field.NewPath("spec"))
+}
+
+// validateSpecWithPath runs the shared SparkApplication validation against the given path.
+func (v *SparkApplicationValidator) validateSpecWithPath(ctx context.Context, app *v1beta2.SparkApplication, path *field.Path) error {
 	if err := v.validateSparkVersion(app); err != nil {
 		return err
 	}
@@ -157,7 +162,7 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 		return err
 	}
 
-	if err := validateConfigMaps(&app.Spec, field.NewPath("spec")); err != nil {
+	if err := validateConfigMaps(&app.Spec, path); err != nil {
 		return err
 	}
 
