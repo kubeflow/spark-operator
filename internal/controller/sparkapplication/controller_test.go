@@ -37,6 +37,8 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/sparkapplication"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/yunikorn"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
@@ -581,6 +583,38 @@ var _ = Describe("SparkApplication Controller", func() {
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
 			Expect(app.Spec.Driver.ServiceAccount).To(BeNil())
+		})
+
+		It("Should submit with the default batch scheduler as the pod scheduler without mutating the SparkApplication", func() {
+			registry := scheduler.GetRegistry()
+			_ = registry.Register(yunikorn.SchedulerName, yunikorn.Factory)
+
+			By("Reconciling the created test SparkApplication")
+			submitter := &recordingSubmitter{}
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				events.NewFakeRecorder(3),
+				registry,
+				submitter,
+				sparkapplication.Options{Namespaces: []string{appNamespace}, DefaultBatchScheduler: yunikorn.SchedulerName},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(submitter.submitted).NotTo(BeNil())
+			Expect(submitter.submitted.Spec.BatchScheduler).To(HaveValue(Equal(yunikorn.SchedulerName)))
+			Expect(util.GetDriverSchedulerName(submitter.submitted)).To(Equal(yunikorn.SchedulerName))
+			Expect(util.GetExecutorSchedulerName(submitter.submitted)).To(Equal(yunikorn.SchedulerName))
+			Expect(submitter.submitted.Spec.Driver.Annotations).To(HaveKey("yunikorn.apache.org/task-group-name"))
+			Expect(submitter.submitted.Spec.Executor.Annotations).To(HaveKey("yunikorn.apache.org/task-group-name"))
+
+			By("Checking the default is not written back to the SparkApplication")
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(app.Spec.BatchScheduler).To(BeNil())
+			Expect(app.Spec.Driver.SchedulerName).To(BeNil())
 		})
 
 		It("Should not set a driver service account when no default is configured", func() {

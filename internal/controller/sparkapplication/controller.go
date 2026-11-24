@@ -1004,12 +1004,16 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	}
 
 	// Use batch scheduler to perform scheduling task before submitting (before build command arguments).
+	// The operator-level default batch scheduler is applied to a copy so that it is never written
+	// back to the custom resource, while the driver and executor pod templates still carry it.
+	submitApp := app
 	if needScheduling, scheduler, err := r.shouldDoBatchScheduling(ctx, app); err != nil {
 		submitErr = fmt.Errorf("failed during batch scheduler setup or check: %v", err)
 		return
 	} else if needScheduling {
 		logger.Info("Do batch scheduling for SparkApplication")
-		if err := scheduler.Schedule(app); err != nil {
+		submitApp = util.ApplyDefaultBatchScheduler(app, r.options.DefaultBatchScheduler)
+		if err := scheduler.Schedule(submitApp); err != nil {
 			submitErr = fmt.Errorf("failed to process batch scheduler: %v", err)
 			return
 		}
@@ -1024,9 +1028,9 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	// Fall back to the operator-level default service account when neither the SparkApplication
 	// nor its driver pod template specifies one. This is applied to a copy of the application so
 	// that the fallback is never written back to the custom resource.
-	submitApp := util.ApplyDefaultDriverServiceAccount(app, r.options.DefaultServiceAccount)
-	if submitApp != app {
+	if withServiceAccount := util.ApplyDefaultDriverServiceAccount(submitApp, r.options.DefaultServiceAccount); withServiceAccount != submitApp {
 		logger.Info("Applied default driver service account", "serviceAccount", r.options.DefaultServiceAccount)
+		submitApp = withServiceAccount
 	}
 
 	if err := r.submitter.Submit(ctx, submitApp); err != nil {
