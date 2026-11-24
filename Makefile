@@ -387,12 +387,16 @@ kind-load-image: kind-create-cluster docker-build ## Load the image into the kin
 # the same tag used by examples/spark-pi.yaml so manual e2e checks line up with
 # the canonical example. Override on the command line if you need a different one.
 SPARK_IMAGE ?= docker.io/apache/spark:4.2.1@sha256:0cb70cf0193ec81c93c6c47078208512bbe659dd9dc89535dd2773826f0ea2bf
+# SPARK_IMAGE_TAG is SPARK_IMAGE without its digest, the tag the E2E workloads run.
+SPARK_IMAGE_TAG = $(firstword $(subst @, ,$(SPARK_IMAGE)))
 
 .PHONY: kind-load-spark-image
 kind-load-spark-image: kind-create-cluster ## Pull the Spark runtime image and load it into the kind cluster.
 	docker image inspect $(SPARK_IMAGE) >/dev/null 2>&1 || docker pull $(SPARK_IMAGE)
 	# Docker 29 keeps only the host platform of multi-platform images, which `kind load docker-image` can't import.
-	docker save --platform $$(docker version -f '{{.Server.Os}}/{{.Server.Arch}}') -o $(LOCALBIN)/spark-image.tar $(SPARK_IMAGE)
+	# A digest-only reference saves with no RepoTags, so kind would import nothing; save it under its tag.
+	docker tag $(SPARK_IMAGE) $(SPARK_IMAGE_TAG)
+	docker save --platform $$(docker version -f '{{.Server.Os}}/{{.Server.Arch}}') -o $(LOCALBIN)/spark-image.tar $(SPARK_IMAGE_TAG)
 	$(KIND) load image-archive --name $(KIND_CLUSTER_NAME) $(LOCALBIN)/spark-image.tar
 	rm -f $(LOCALBIN)/spark-image.tar
 
