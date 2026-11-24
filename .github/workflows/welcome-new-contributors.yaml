@@ -41,6 +41,11 @@ permissions:
 
 jobs:
   welcome:
+    # actions/first-interaction v3.1.0 welcomes almost every PR author, so
+    # GitHub's author_association decides for PRs. Issues use the action's check.
+    if: >-
+      github.event_name == 'issues' ||
+      contains(fromJSON('["FIRST_TIME_CONTRIBUTOR","FIRST_TIMER"]'), github.event.pull_request.author_association)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/first-interaction@1c4688942c71f71d4f5502a26ea67c331730fa4d # v3.1.0
