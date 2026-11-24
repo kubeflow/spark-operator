@@ -40,6 +40,12 @@ func TestParseSchedule(t *testing.T) {
 		{name: "unknown timezone", schedule: "*/5 * * * *", timezone: "Mars/Olympus_Mons", wantErr: true, wantErrContent: "invalid timezone"},
 		{name: "garbage schedule", schedule: "not a cron", timezone: "", wantErr: true, wantErrContent: "invalid schedule"},
 		{name: "out-of-range field", schedule: "60 * * * *", timezone: "", wantErr: true, wantErrContent: "invalid schedule"},
+		{name: "embedded CRON_TZ without schedule", schedule: "CRON_TZ=UTC", timezone: "", wantErr: true, wantErrContent: "invalid schedule"},
+		{name: "embedded TZ without schedule", schedule: "TZ=UTC", timezone: "", wantErr: true, wantErrContent: "invalid schedule"},
+		{name: "embedded CRON_TZ without timezone", schedule: "CRON_TZ=", timezone: "", wantErr: true, wantErrContent: "invalid schedule"},
+		{name: "embedded TZ without timezone", schedule: "TZ=", timezone: "", wantErr: true, wantErrContent: "invalid schedule"},
+		{name: "embedded CRON_TZ with empty schedule", schedule: "CRON_TZ=UTC ", timezone: "", wantErr: true, wantErrContent: "invalid schedule"},
+		{name: "embedded CRON_TZ with invalid timezone", schedule: "CRON_TZ=Mars/Olympus_Mons 0 12 * * *", timezone: "", wantErr: true, wantErrContent: "invalid schedule"},
 	}
 
 	for _, tt := range tests {

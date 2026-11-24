@@ -50,7 +50,13 @@ func ParseSchedule(schedule, timezone string) (cron.Schedule, error) {
 	}
 
 	cronSchedule := schedule
-	if !strings.HasPrefix(cronSchedule, "CRON_TZ=") && !strings.HasPrefix(cronSchedule, "TZ=") {
+	if strings.HasPrefix(cronSchedule, "CRON_TZ=") || strings.HasPrefix(cronSchedule, "TZ=") {
+		// cron.ParseStandard panics when the embedded timezone prefix is not
+		// followed by a space and a schedule, so reject that form here.
+		if _, expr, ok := strings.Cut(cronSchedule, " "); !ok || strings.TrimSpace(expr) == "" {
+			return nil, fmt.Errorf("%w %q: embedded timezone prefix must be followed by a space and a schedule", ErrInvalidSchedule, schedule)
+		}
+	} else {
 		cronSchedule = fmt.Sprintf("CRON_TZ=%s %s", timezone, cronSchedule)
 	}
 	parsed, err := cron.ParseStandard(cronSchedule)
