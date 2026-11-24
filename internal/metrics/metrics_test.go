@@ -30,9 +30,21 @@ import (
 )
 
 func TestExtraHandlersDefaultEndpoint(t *testing.T) {
-	for _, endpoint := range []string{"", "/metrics", "metrics"} {
+	for _, endpoint := range []string{"", "/metrics", "metrics", "/%6detrics"} {
 		assert.Nil(t, metrics.ExtraHandlers(endpoint), "endpoint %q", endpoint)
 	}
+}
+
+func TestExtraHandlersEncodedDefaultEndpoint(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", http.NotFoundHandler())
+
+	// The mux unescapes its patterns, so this spelling would conflict with /metrics.
+	require.NotPanics(t, func() {
+		for path, handler := range metrics.ExtraHandlers("/%6detrics") {
+			mux.Handle(path, handler)
+		}
+	})
 }
 
 func TestExtraHandlersCustomEndpoint(t *testing.T) {

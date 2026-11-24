@@ -18,6 +18,7 @@ package metrics
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -40,7 +41,8 @@ func ExtraHandlers(endpoint string) map[string]http.Handler {
 	if !strings.HasPrefix(endpoint, "/") {
 		endpoint = "/" + endpoint
 	}
-	if endpoint == defaultEndpoint {
+	// The mux unescapes its patterns, so an encoded spelling of the default endpoint conflicts with it.
+	if unescaped, err := url.PathUnescape(endpoint); err == nil && unescaped == defaultEndpoint {
 		return nil
 	}
 	return map[string]http.Handler{
