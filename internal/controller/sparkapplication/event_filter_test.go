@@ -549,6 +549,25 @@ func TestSparkPodEventFilter_Update(t *testing.T) {
 	_ = corev1.AddToScheme(scheme)
 	_ = v1beta2.AddToScheme(scheme)
 
+	// sparkPod is a running Spark pod of the given role, ready or not, and being deleted or not.
+	sparkPod := func(role string, ready, deleting bool) *corev1.Pod {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "spark-" + role,
+				Namespace: "default",
+				Labels:    map[string]string{common.LabelLaunchedBySparkOperator: "true", common.LabelSparkRole: role},
+			},
+			Status: corev1.PodStatus{Phase: corev1.PodRunning},
+		}
+		if ready {
+			pod.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
+		}
+		if deleting {
+			pod.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+		}
+		return pod
+	}
+
 	tests := []struct {
 		name              string
 		namespaces        []string
@@ -556,6 +575,7 @@ func TestSparkPodEventFilter_Update(t *testing.T) {
 		existingNs        *corev1.Namespace
 		oldPod            *corev1.Pod
 		newPod            *corev1.Pod
+		noExecutorCounts  bool
 		expected          bool
 	}{
 		{
@@ -674,6 +694,42 @@ func TestSparkPodEventFilter_Update(t *testing.T) {
 			},
 			expected: true,
 		},
+		{
+			name:       "phase not changed - executor became ready",
+			namespaces: []string{"default"},
+			oldPod:     sparkPod(common.SparkRoleExecutor, false, false),
+			newPod:     sparkPod(common.SparkRoleExecutor, true, false),
+			expected:   true,
+		},
+		{
+			name:       "phase not changed - executor became not ready",
+			namespaces: []string{"default"},
+			oldPod:     sparkPod(common.SparkRoleExecutor, true, false),
+			newPod:     sparkPod(common.SparkRoleExecutor, false, false),
+			expected:   true,
+		},
+		{
+			name:       "phase not changed - executor started being deleted",
+			namespaces: []string{"default"},
+			oldPod:     sparkPod(common.SparkRoleExecutor, true, false),
+			newPod:     sparkPod(common.SparkRoleExecutor, true, true),
+			expected:   true,
+		},
+		{
+			name:             "phase not changed - executor became ready, executor counts disabled",
+			namespaces:       []string{"default"},
+			oldPod:           sparkPod(common.SparkRoleExecutor, false, false),
+			newPod:           sparkPod(common.SparkRoleExecutor, true, false),
+			noExecutorCounts: true,
+			expected:         false,
+		},
+		{
+			name:       "phase not changed - driver became ready",
+			namespaces: []string{"default"},
+			oldPod:     sparkPod(common.SparkRoleDriver, false, false),
+			newPod:     sparkPod(common.SparkRoleDriver, true, false),
+			expected:   false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -688,6 +744,7 @@ func TestSparkPodEventFilter_Update(t *testing.T) {
 			if err != nil {
 				t.Fatalf("newSparkPodEventFilter() unexpected error: %v", err)
 			}
+			filter.executorCounts = !tt.noExecutorCounts
 
 			e := event.UpdateEvent{ObjectOld: tt.oldPod, ObjectNew: tt.newPod}
 			result := filter.Update(e)
