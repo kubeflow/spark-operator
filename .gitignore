@@ -18,3 +18,6 @@ venv/
 # Python bytecode
 __pycache__/
 *.py[cod]
+
+# Local AI agent configuration (see .agents/README.md)
+.claude/
