@@ -130,3 +130,23 @@ tests:
       - equal:
           path: spec.duration
           value: 8760h
+
+  - it: Should use `namespaceOverride` for the Certificate namespace and DNS names
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1/Certificate
+        - cert-manager.io/v1/Issuer
+    set:
+      namespaceOverride: spark-operator-system
+      certManager:
+        enable: true
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: spark-operator-system
+      - equal:
+          path: spec.commonName
+          value: spark-operator-webhook-svc.spark-operator-system.svc
+      - contains:
+          path: spec.dnsNames
+          content: spark-operator-webhook-svc.spark-operator-system.svc.cluster.local

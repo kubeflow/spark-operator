@@ -1111,3 +1111,23 @@ tests:
       - isNull:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].startupProbe
 
+
+  - it: Should deploy controller to the release namespace if `namespaceOverride` is not set
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: spark-operator
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-election-lock-namespace=spark-operator
+
+  - it: Should deploy controller to `namespaceOverride` if set
+    set:
+      namespaceOverride: spark-operator-system
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: spark-operator-system
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-election-lock-namespace=spark-operator-system

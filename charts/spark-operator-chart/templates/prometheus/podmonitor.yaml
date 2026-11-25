@@ -25,6 +25,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
   name: {{ include "spark-operator.prometheus.podMonitorName" . }}
+  namespace: {{ include "spark-operator.namespace" . }}
   {{- with .Values.prometheus.podMonitor.labels }}
   labels: 
     {{- toYaml . | nindent 4 }}
@@ -37,7 +38,7 @@ spec:
   jobLabel: {{ .Values.prometheus.podMonitor.jobLabel }}
   namespaceSelector:
     matchNames:
-    - {{ .Release.Namespace }}
+    - {{ include "spark-operator.namespace" . }}
   selector:
     matchLabels:
       {{- include "spark-operator.selectorLabels" . | nindent 6 }}

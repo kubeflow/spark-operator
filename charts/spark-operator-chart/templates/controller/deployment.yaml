@@ -19,6 +19,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "spark-operator.controller.deploymentName" . }}
+  namespace: {{ include "spark-operator.namespace" . }}
   labels:
     {{- include "spark-operator.controller.labels" . | nindent 4 }}
   {{- with .Values.controller.deploymentAnnotations }}
@@ -113,7 +114,7 @@ spec:
         {{ if .Values.controller.leaderElection.enable }}
         - --leader-election=true
         - --leader-election-lock-name={{ include "spark-operator.controller.leaderElectionName" . }}
-        - --leader-election-lock-namespace={{ .Release.Namespace }}
+        - --leader-election-lock-namespace={{ include "spark-operator.namespace" . }}
         - --leader-election-lease-duration={{ .Values.controller.leaderElection.leaseDuration }}
         - --leader-election-renew-deadline={{ .Values.controller.leaderElection.renewDeadline }}
         - --leader-election-retry-period={{ .Values.controller.leaderElection.retryPeriod }}

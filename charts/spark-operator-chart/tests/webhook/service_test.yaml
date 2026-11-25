@@ -45,3 +45,17 @@ tests:
             port: 9443
             targetPort: webhook
             name: webhook
+
+  - it: Should create webhook service in the release namespace if `namespaceOverride` is not set
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: spark-operator
+
+  - it: Should create webhook service in `namespaceOverride` if set
+    set:
+      namespaceOverride: spark-operator-system
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: spark-operator-system

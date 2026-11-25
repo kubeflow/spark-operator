@@ -202,3 +202,25 @@ tests:
       - equal:
           path: webhooks[*].timeoutSeconds
           value: 5
+
+  - it: Should point the webhook client config at `namespaceOverride` if set
+    set:
+      namespaceOverride: spark-operator-system
+    asserts:
+      - equal:
+          path: webhooks[0].clientConfig.service.namespace
+          value: spark-operator-system
+
+  - it: Should inject the CA from the Certificate in `namespaceOverride` if set
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1/Certificate
+        - cert-manager.io/v1/Issuer
+    set:
+      namespaceOverride: spark-operator-system
+      certManager:
+        enable: true
+    asserts:
+      - equal:
+          path: metadata.annotations["cert-manager.io/inject-ca-from"]
+          value: spark-operator-system/spark-operator-certificate

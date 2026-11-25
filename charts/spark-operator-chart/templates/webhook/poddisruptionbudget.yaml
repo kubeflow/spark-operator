@@ -23,6 +23,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: {{ include "spark-operator.webhook.podDisruptionBudgetName" . }}
+  namespace: {{ include "spark-operator.namespace" . }}
   labels:
     {{- include "spark-operator.webhook.labels" . | nindent 4 }}
 spec:

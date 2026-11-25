@@ -64,3 +64,26 @@ tests:
       - equal:
           path: spec.minAvailable
           value: 3
+
+  - it: Should create controller pdb in the release namespace if `namespaceOverride` is not set
+    set:
+      controller:
+        replicas: 2
+        podDisruptionBudget:
+          enable: true
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: spark-operator
+
+  - it: Should create controller pdb in `namespaceOverride` if set
+    set:
+      namespaceOverride: spark-operator-system
+      controller:
+        replicas: 2
+        podDisruptionBudget:
+          enable: true
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: spark-operator-system

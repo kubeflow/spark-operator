@@ -95,3 +95,28 @@ tests:
       - equal:
           path: metadata.labels.key1
           value: value1
+
+  - it: Should create the public ConfigMap in `namespaceOverride` if `publicConfigMap.namespace` is not set
+    set:
+      namespaceOverride: spark-operator-system
+      publicConfigMap:
+        create: true
+    asserts:
+      - containsDocument:
+          apiVersion: v1
+          kind: ConfigMap
+          name: kubeflow-spark-public
+          namespace: spark-operator-system
+
+  - it: Should prefer `publicConfigMap.namespace` over `namespaceOverride`
+    set:
+      namespaceOverride: spark-operator-system
+      publicConfigMap:
+        create: true
+        namespace: kube-public
+    asserts:
+      - containsDocument:
+          apiVersion: v1
+          kind: ConfigMap
+          name: kubeflow-spark-public
+          namespace: kube-public

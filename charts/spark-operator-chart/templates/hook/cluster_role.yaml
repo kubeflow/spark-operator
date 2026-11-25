@@ -19,7 +19,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ include "spark-operator.hook.clusterRole.name" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "spark-operator.namespace" . }}
   labels:
     {{- include "spark-operator.hook.labels" . | nindent 4 }}
   annotations:

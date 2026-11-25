@@ -387,3 +387,21 @@ tests:
             resources:
               - scheduledsparkapplications/finalizers
           any: true
+
+  - it: Should create webhook rolebinding in `namespaceOverride` if set
+    set:
+      namespaceOverride: spark-operator-system
+    documentIndex: 3
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-webhook
+          namespace: spark-operator-system
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark-operator-webhook
+            namespace: spark-operator-system
+          count: 1

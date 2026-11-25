@@ -19,6 +19,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "spark-operator.webhook.serviceName" . }}
+  namespace: {{ include "spark-operator.namespace" . }}
   labels:
     {{- include "spark-operator.webhook.labels" . | nindent 4 }}
 spec:

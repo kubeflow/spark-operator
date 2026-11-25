@@ -178,3 +178,15 @@ tests:
             apiGroup: rbac.authorization.k8s.io
             kind: Role
             name: spark
+
+  - it: Should keep Spark RBAC resources in `spark.jobNamespaces` when `namespaceOverride` is set
+    set:
+      namespaceOverride: spark-operator-system
+      spark:
+        jobNamespaces:
+          - ns1
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: ns1

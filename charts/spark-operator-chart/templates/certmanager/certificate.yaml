@@ -23,7 +23,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: {{ include "spark-operator.certManager.certificate.name" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "spark-operator.namespace" . }}
   labels:
     {{- include "spark-operator.labels" . | nindent 4 }}
 spec:
@@ -36,10 +36,10 @@ spec:
     {{- else }}
     {{- toYaml .Values.certManager.issuerRef | nindent 4 }}
     {{- end }}
-  commonName: {{ include "spark-operator.webhook.serviceName" . }}.{{ .Release.Namespace }}.svc
+  commonName: {{ include "spark-operator.webhook.serviceName" . }}.{{ include "spark-operator.namespace" . }}.svc
   dnsNames:
-  - {{ include "spark-operator.webhook.serviceName" . }}.{{ .Release.Namespace }}.svc
-  - {{ include "spark-operator.webhook.serviceName" . }}.{{ .Release.Namespace }}.svc.cluster.local
+  - {{ include "spark-operator.webhook.serviceName" . }}.{{ include "spark-operator.namespace" . }}.svc
+  - {{ include "spark-operator.webhook.serviceName" . }}.{{ include "spark-operator.namespace" . }}.svc.cluster.local
   subject:
     organizationalUnits:
      - spark-operator

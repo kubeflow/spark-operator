@@ -213,3 +213,13 @@ tests:
     - equal:
         path: spec.template.metadata.labels.key2
         value: value2
+
+- it: Should use `namespaceOverride` for the hook Job if set
+  set:
+    namespaceOverride: spark-operator-system
+    hook:
+      upgradeCrd: true
+  asserts:
+  - equal:
+      path: metadata.namespace
+      value: spark-operator-system

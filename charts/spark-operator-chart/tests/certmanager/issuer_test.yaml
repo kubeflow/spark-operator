@@ -91,3 +91,17 @@ tests:
           kind: Issuer
           name: spark-operator-self-signed-issuer
           namespace: spark-operator
+
+  - it: Should use `namespaceOverride` for the Issuer namespace
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1/Certificate
+        - cert-manager.io/v1/Issuer
+    set:
+      namespaceOverride: spark-operator-system
+      certManager:
+        enable: true
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: spark-operator-system

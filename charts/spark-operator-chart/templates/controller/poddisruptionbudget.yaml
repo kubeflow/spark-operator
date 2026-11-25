@@ -22,6 +22,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: {{ include "spark-operator.controller.podDisruptionBudgetName" . }}
+  namespace: {{ include "spark-operator.namespace" . }}
   labels:
     {{- include "spark-operator.controller.labels" . | nindent 4 }}
 spec:
