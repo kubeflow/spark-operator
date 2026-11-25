@@ -48,8 +48,13 @@ A [weekly GitHub Actions workflow](../.github/workflows/update-kubectl.yaml) che
 `https://dl.k8s.io/release/stable-<minor>.txt` every Monday. When a new patch is
 available it opens a PR that bumps `.github/kubectl-version.txt` and the
 `ARG KUBECTL_VERSION` default in `docker/Dockerfile.kubectl`. The PR is labelled
-`kind/dependency-update` and can be merged immediately after CI passes—no release
-branch coordination is required.
+`dependencies` and can be merged once CI passes; no release branch coordination
+is required.
+
+The workflow opens the PR with `GITHUB_TOKEN`, so the repository setting
+"Allow GitHub Actions to create and approve pull requests" must be enabled.
+PRs opened with `GITHUB_TOKEN` do not trigger other workflows, so close and
+reopen the PR to start CI.
 
 ### Bumping the minor version manually
 
