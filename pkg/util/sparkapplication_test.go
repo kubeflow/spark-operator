@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
@@ -494,6 +495,40 @@ var _ = Describe("GetExecutorRequestResource", func() {
 			resources := util.GetExecutorRequestResource(app)
 			Expect(resources).NotTo(BeEmpty())
 		})
+	})
+})
+
+var _ = Describe("Request resource memory", func() {
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "test-namespace",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					Memory:         ptr.To("1g"),
+					MemoryOverhead: ptr.To("512m"),
+				},
+			},
+			Executor: v1beta2.ExecutorSpec{
+				Instances: ptr.To[int32](2),
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					Memory:         ptr.To("2G"),
+					MemoryOverhead: ptr.To("256m"),
+				},
+			},
+		},
+	}
+
+	It("Should interpret Spark memory units in the driver request", func() {
+		resources := util.GetDriverRequestResource(app)
+		Expect(resources[corev1.ResourceMemory]).To(BeComparableTo(resource.MustParse("1536Mi")))
+	})
+
+	It("Should interpret Spark memory units in the executor request", func() {
+		resources := util.GetExecutorRequestResource(app)
+		Expect(resources[corev1.ResourceMemory]).To(BeComparableTo(resource.MustParse("4608Mi")))
 	})
 })
 
