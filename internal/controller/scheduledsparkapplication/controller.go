@@ -27,6 +27,7 @@ import (
 	_ "time/tzdata"
 
 	"github.com/robfig/cron/v3"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -143,7 +144,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			logger.Error(err, "Failed to load timezone location", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "timezone", timezone)
 			scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateFailedValidation
 			scheduledApp.Status.Reason = fmt.Sprintf("Invalid timezone: %v", err)
-			if updateErr := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); updateErr != nil {
+			if updateErr := r.updateScheduledSparkApplicationStatus(ctx, oldScheduledApp, scheduledApp); updateErr != nil {
 				return ctrl.Result{Requeue: true}, updateErr
 			}
 			return ctrl.Result{}, nil
@@ -161,7 +162,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		logger.Error(parseErr, "Failed to parse schedule of ScheduledSparkApplication", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "schedule", scheduledApp.Spec.Schedule)
 		scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateFailedValidation
 		scheduledApp.Status.Reason = parseErr.Error()
-		if updateErr := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); updateErr != nil {
+		if updateErr := r.updateScheduledSparkApplicationStatus(ctx, oldScheduledApp, scheduledApp); updateErr != nil {
 			return ctrl.Result{Requeue: true}, updateErr
 		}
 		return ctrl.Result{}, nil
@@ -177,7 +178,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateScheduled
 		scheduledApp.Status.Reason = ""
-		if err := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); err != nil {
+		if err := r.updateScheduledSparkApplicationStatus(ctx, oldScheduledApp, scheduledApp); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
 		return ctrl.Result{RequeueAfter: nextRunTime.Sub(now)}, nil
@@ -186,7 +187,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		nextRunTime := scheduledApp.Status.NextRun
 		if nextRunTime.IsZero() {
 			scheduledApp.Status.NextRun = metav1.NewTime(schedule.Next(now))
-			if err := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); err != nil {
+			if err := r.updateScheduledSparkApplicationStatus(ctx, oldScheduledApp, scheduledApp); err != nil {
 				return ctrl.Result{Requeue: true}, err
 			}
 			return ctrl.Result{RequeueAfter: schedule.Next(now).Sub(now)}, nil
@@ -217,7 +218,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err = r.checkAndUpdatePastRuns(ctx, scheduledApp); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
-		if err := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); err != nil {
+		if err := r.updateScheduledSparkApplicationStatus(ctx, oldScheduledApp, scheduledApp); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
 		return ctrl.Result{RequeueAfter: schedule.Next(now).Sub(now)}, nil
@@ -398,7 +399,10 @@ func (r *Reconciler) checkAndUpdatePastRuns(ctx context.Context, scheduledApp *v
 	return nil
 }
 
-func (r *Reconciler) updateScheduledSparkApplicationStatus(ctx context.Context, scheduledApp *v1beta2.ScheduledSparkApplication) error {
+func (r *Reconciler) updateScheduledSparkApplicationStatus(ctx context.Context, old, scheduledApp *v1beta2.ScheduledSparkApplication) error {
+	if equality.Semantic.DeepEqual(old.Status, scheduledApp.Status) {
+		return nil
+	}
 	// logger.Info("Updating SchedulingSparkApplication", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "status", scheduledApp.Status)
 	if err := r.client.Status().Update(ctx, scheduledApp); err != nil {
 		return fmt.Errorf("failed to update ScheduledSparkApplication status: %v", err)

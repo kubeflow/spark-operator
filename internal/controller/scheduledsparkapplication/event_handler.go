@@ -48,7 +48,7 @@ func (s *EventHandler) Create(ctx context.Context, event event.CreateEvent, queu
 	}
 
 	logger.V(1).Info("ScheduledSparkApplication created", "name", app.Name, "namespace", app.Namespace)
-	queue.AddRateLimited(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
+	queue.Add(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
 }
 
 // Update implements handler.EventHandler.
@@ -59,7 +59,7 @@ func (s *EventHandler) Update(ctx context.Context, event event.UpdateEvent, queu
 	}
 
 	logger.V(1).Info("ScheduledSparkApplication updated", "name", oldApp.Name, "namespace", oldApp.Namespace)
-	queue.AddRateLimited(ctrl.Request{NamespacedName: types.NamespacedName{Name: oldApp.Name, Namespace: oldApp.Namespace}})
+	queue.Add(ctrl.Request{NamespacedName: types.NamespacedName{Name: oldApp.Name, Namespace: oldApp.Namespace}})
 }
 
 // Delete implements handler.EventHandler.
@@ -70,7 +70,7 @@ func (s *EventHandler) Delete(ctx context.Context, event event.DeleteEvent, queu
 	}
 
 	logger.V(1).Info("ScheduledSparkApplication deleted", "name", app.Name, "namespace", app.Namespace)
-	queue.AddRateLimited(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
+	queue.Add(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
 }
 
 // Generic implements handler.EventHandler.
@@ -81,5 +81,5 @@ func (s *EventHandler) Generic(ctx context.Context, event event.GenericEvent, qu
 	}
 
 	logger.V(1).Info("ScheduledSparkApplication generic event", "name", app.Name, "namespace", app.Namespace)
-	queue.AddRateLimited(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
+	queue.Add(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
 }

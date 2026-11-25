@@ -30,6 +30,7 @@ import (
 	testingclock "k8s.io/utils/clock/testing"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -226,6 +227,35 @@ var _ = Describe("ScheduledSparkApplication Controller", func() {
 			Expect(app.Status.Reason).To(BeEmpty())
 			Expect(app.Status.NextRun.Time).To(BeTemporally("==", t0.Add(7*time.Hour)))
 			Expect(app.Status.NextRun.Time).NotTo(BeTemporally("==", initialNextRun.Time))
+		})
+
+		It("should not update the status when nothing has changed", func() {
+			base, err := client.NewWithWatch(cfg, client.Options{Scheme: k8sClient.Scheme()})
+			Expect(err).NotTo(HaveOccurred())
+			statusUpdates := 0
+			countingClient := interceptor.NewClient(base, interceptor.Funcs{
+				SubResourceUpdate: func(ctx context.Context, c client.Client, subResourceName string, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+					statusUpdates++
+					return c.SubResource(subResourceName).Update(ctx, obj, opts...)
+				},
+			})
+			fakeClock := testingclock.NewFakeClock(time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC))
+			reconciler := NewReconciler(k8sClient.Scheme(), countingClient, nil, fakeClock, Options{Namespaces: []string{"default"}, TimestampPrecision: "nanos"})
+
+			app := &v1beta2.ScheduledSparkApplication{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			app.Spec.TimeZone = "Invalid/Timezone"
+			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+
+			By("Recording FailedValidation on the first reconcile")
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: typeNamespacedName})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(statusUpdates).To(Equal(1))
+
+			By("Reconciling again with the same invalid timezone")
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: typeNamespacedName})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(statusUpdates).To(Equal(1))
 		})
 	})
 })

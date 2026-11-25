@@ -158,7 +158,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 							Namespace: e.Object.GetNamespace(),
 							Name:      name,
 						}
-						q.AddRateLimited(reconcile.Request{NamespacedName: key})
+						q.Add(reconcile.Request{NamespacedName: key})
 					}
 				},
 				UpdateFunc: func(ctx context.Context, e event.TypedUpdateEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
@@ -169,7 +169,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 							Namespace: e.ObjectNew.GetNamespace(),
 							Name:      name,
 						}
-						q.AddRateLimited(reconcile.Request{NamespacedName: key})
+						q.Add(reconcile.Request{NamespacedName: key})
 					}
 				},
 				DeleteFunc: func(ctx context.Context, e event.TypedDeleteEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
@@ -180,7 +180,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 							Namespace: e.Object.GetNamespace(),
 							Name:      name,
 						}
-						q.AddRateLimited(reconcile.Request{NamespacedName: key})
+						q.Add(reconcile.Request{NamespacedName: key})
 					}
 				},
 				GenericFunc: func(ctx context.Context, e event.TypedGenericEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
@@ -191,7 +191,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 							Namespace: e.Object.GetNamespace(),
 							Name:      name,
 						}
-						q.AddRateLimited(reconcile.Request{NamespacedName: key})
+						q.Add(reconcile.Request{NamespacedName: key})
 					}
 				},
 			},
