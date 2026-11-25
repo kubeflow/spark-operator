@@ -33,6 +33,12 @@ Before writing code, agents should:
 
 For additional context see [the Spark Operator docs](https://spark.kubeflow.org/en/latest/).
 
+### Agent Resources
+
+Reusable agent skills live in [`.agents/`](.agents/README.md). The `review-pr` skill runs a
+multi-agent review of a pull request or local changes; see the README for setup in Claude Code.
+GitHub Copilot code review follows [`.github/copilot-instructions.md`](.github/copilot-instructions.md).
+
 ### Comments
 
 - Prefer clear names and small functions over explanatory comments.
@@ -47,6 +53,7 @@ For additional context see [the Spark Operator docs](https://spark.kubeflow.org/
 
 ```
 kubeflow/spark-operator/
+├── .agents/                 # Shared AI agent skills (see .agents/README.md)
 ├── .github/                 # GitHub Actions workflows (CI, release, docs)
 ├── api/                     # CRD API types (Go) and generated artifacts
 │   ├── v1beta2/               # SparkApplication, ScheduledSparkApplication (stable API)

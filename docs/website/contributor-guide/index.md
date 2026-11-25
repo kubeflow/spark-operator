@@ -298,6 +298,17 @@ INFO[2024-04-14T07:29:26Z] Generating README Documentation for chart charts/spar
 
 Note that if git pre-commit hooks are set up, `helm-docs` will automatically run before committing any changes. If there are any changes to the `README.md` file, the commit process will be aborted.
 
+## Use AI Coding Agents
+
+If you use an AI coding agent, point it at [`AGENTS.md`](https://github.com/kubeflow/spark-operator/blob/master/AGENTS.md),
+which lists the project conventions, generated files and the `make` targets CI runs. Shared agent
+skills, such as `review-pr` for reviewing a pull request before you submit it, live in
+[`.agents/`](https://github.com/kubeflow/spark-operator/tree/master/.agents). See its
+[README](https://github.com/kubeflow/spark-operator/blob/master/.agents/README.md) for setup.
+
+You are responsible for every change you submit, whoever or whatever wrote it: review AI-generated
+code yourself and run the checks above before opening a pull request.
+
 ## Sign off your commits
 
 After you have made changes to the code, please sign off your commits with `-s` or `--signoff` flag so that the DCO check CI will pass:
