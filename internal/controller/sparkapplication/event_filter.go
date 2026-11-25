@@ -213,6 +213,7 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 				nil,
 				corev1.EventTypeNormal,
 				"SparkApplicationWebhookFieldsUpdated",
+				"Update",
 				"SparkApplication %s webhook-patched fields updated, new pods will use updated values",
 				newApp.Name,
 			)
@@ -229,6 +230,7 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 				nil,
 				corev1.EventTypeWarning,
 				"SparkApplicationSpecUpdateFailed",
+				"Update",
 				"Failed to update spec for SparkApplication %s: %v",
 				newApp.Name,
 				err,

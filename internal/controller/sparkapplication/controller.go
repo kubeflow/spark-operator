@@ -1063,6 +1063,7 @@ func (r *Reconciler) updateDriverState(ctx context.Context, app *v1beta2.SparkAp
 				nil,
 				corev1.EventTypeWarning,
 				common.EventSparkDriverNotFound,
+				"Reconcile",
 				"Driver pod %s not found after grace period %v, marking application as Failing",
 				app.Status.DriverInfo.PodName,
 				r.options.DriverPodCreationGracePeriod,
@@ -1401,6 +1402,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			nil,
 			corev1.EventTypeNormal,
 			common.EventSparkApplicationAdded,
+			"Reconcile",
 			"SparkApplication %s was added, enqueuing it for submission",
 			app.Name,
 		)
@@ -1410,6 +1412,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			nil,
 			corev1.EventTypeNormal,
 			common.EventSparkApplicationSubmitted,
+			"Reconcile",
 			"SparkApplication %s was submitted successfully",
 			app.Name,
 		)
@@ -1419,6 +1422,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			nil,
 			corev1.EventTypeWarning,
 			common.EventSparkApplicationSubmissionFailed,
+			"Reconcile",
 			"failed to submit SparkApplication %s: %s",
 			app.Name,
 			app.Status.AppState.ErrorMessage,
@@ -1429,6 +1433,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			nil,
 			corev1.EventTypeNormal,
 			common.EventSparkApplicationCompleted,
+			"Reconcile",
 			"SparkApplication %s completed",
 			app.Name,
 		)
@@ -1438,6 +1443,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			nil,
 			corev1.EventTypeWarning,
 			common.EventSparkApplicationFailed,
+			"Reconcile",
 			"SparkApplication %s failed: %s",
 			app.Name,
 			app.Status.AppState.ErrorMessage,
@@ -1448,6 +1454,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			nil,
 			corev1.EventTypeWarning,
 			common.EventSparkApplicationPendingRerun,
+			"Reconcile",
 			"SparkApplication %s is pending rerun",
 			app.Name,
 		)
@@ -1457,6 +1464,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			nil,
 			corev1.EventTypeWarning,
 			common.EventSparkApplicationSuspending,
+			"Reconcile",
 			"SparkApplication %s is suspending",
 			app.Name,
 		)
@@ -1466,6 +1474,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			nil,
 			corev1.EventTypeWarning,
 			common.EventSparkApplicationSuspended,
+			"Reconcile",
 			"SparkApplication %s is suspended",
 			app.Name,
 		)
@@ -1475,6 +1484,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			nil,
 			corev1.EventTypeWarning,
 			common.EventSparkApplicationResuming,
+			"Reconcile",
 			"SparkApplication %s is resuming",
 			app.Name,
 		)
@@ -1484,30 +1494,30 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 func (r *Reconciler) recordDriverEvent(app *v1beta2.SparkApplication, state v1beta2.DriverState, name string) {
 	switch state {
 	case v1beta2.DriverStatePending:
-		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkDriverPending, "Driver %s is pending", name)
+		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkDriverPending, "Reconcile", "Driver %s is pending", name)
 	case v1beta2.DriverStateRunning:
-		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkDriverRunning, "Driver %s is running", name)
+		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkDriverRunning, "Reconcile", "Driver %s is running", name)
 	case v1beta2.DriverStateCompleted:
-		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkDriverCompleted, "Driver %s completed", name)
+		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkDriverCompleted, "Reconcile", "Driver %s completed", name)
 	case v1beta2.DriverStateFailed:
-		r.recorder.Eventf(app, nil, corev1.EventTypeWarning, common.EventSparkDriverFailed, "Driver %s failed", name)
+		r.recorder.Eventf(app, nil, corev1.EventTypeWarning, common.EventSparkDriverFailed, "Reconcile", "Driver %s failed", name)
 	case v1beta2.DriverStateUnknown:
-		r.recorder.Eventf(app, nil, corev1.EventTypeWarning, common.EventSparkDriverUnknown, "Driver %s in unknown state", name)
+		r.recorder.Eventf(app, nil, corev1.EventTypeWarning, common.EventSparkDriverUnknown, "Reconcile", "Driver %s in unknown state", name)
 	}
 }
 
 func (r *Reconciler) recordExecutorEvent(app *v1beta2.SparkApplication, state v1beta2.ExecutorState, args ...any) {
 	switch state {
 	case v1beta2.ExecutorStatePending:
-		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkExecutorPending, "Executor %s is pending", app.Name, args...)
+		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkExecutorPending, "Reconcile", "Executor %s is pending", args...)
 	case v1beta2.ExecutorStateRunning:
-		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkExecutorRunning, "Executor %s is running", app.Name, args...)
+		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkExecutorRunning, "Reconcile", "Executor %s is running", args...)
 	case v1beta2.ExecutorStateCompleted:
-		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkExecutorCompleted, "Executor %s completed", app.Name, args...)
+		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkExecutorCompleted, "Reconcile", "Executor %s completed", args...)
 	case v1beta2.ExecutorStateFailed:
-		r.recorder.Eventf(app, nil, corev1.EventTypeWarning, common.EventSparkExecutorFailed, "Executor %s failed with ExitCode: %d, Reason: %s, Pod Message: %s", app.Name, args...)
+		r.recorder.Eventf(app, nil, corev1.EventTypeWarning, common.EventSparkExecutorFailed, "Reconcile", "Executor %s failed with ExitCode: %d, Reason: %s, Pod Message: %s", args...)
 	case v1beta2.ExecutorStateUnknown:
-		r.recorder.Eventf(app, nil, corev1.EventTypeWarning, common.EventSparkExecutorUnknown, "Executor %s in unknown state", app.Name, args...)
+		r.recorder.Eventf(app, nil, corev1.EventTypeWarning, common.EventSparkExecutorUnknown, "Reconcile", "Executor %s in unknown state", args...)
 	}
 }
 
