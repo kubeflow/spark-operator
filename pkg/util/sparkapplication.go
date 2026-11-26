@@ -214,7 +214,6 @@ func GetDefaultUIIngressName(app *v1beta2.SparkApplication) string {
 	return generateName(app.Name, "ui-ingress")
 }
 
-// GetDriverIngressServiceName returns the name of the service exposing the given driver port.
 func GetDriverIngressServiceName(app *v1beta2.SparkApplication, port int32) string {
 	return generateName(app.Name, fmt.Sprintf("driver-%d", port))
 }
