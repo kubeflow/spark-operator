@@ -24,7 +24,7 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: {{ include "spark-operator.certManager.issuer.name" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "spark-operator.namespace" . }}
   labels:
     {{- include "spark-operator.labels" . | nindent 4 }}
 spec:

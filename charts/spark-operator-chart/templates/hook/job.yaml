@@ -19,7 +19,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ include "spark-operator.hook.job.name" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "spark-operator.namespace" . }}
   labels:
     {{- include "spark-operator.hook.labels" . | nindent 4 }}
   annotations:

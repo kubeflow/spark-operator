@@ -71,6 +71,13 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Namespace for the operator's namespaced resources.
+*/}}
+{{- define "spark-operator.namespace" -}}
+{{- .Values.namespaceOverride | default .Release.Namespace -}}
+{{- end -}}
+
+{{/*
 Spark Operator image
 */}}
 {{- define "spark-operator.image" -}}
@@ -88,7 +95,7 @@ kubeflow-spark-public
 Namespace of the public ConfigMap and its RBAC resources.
 */}}
 {{- define "spark-operator.publicConfigMap.namespace" -}}
-{{- .Values.publicConfigMap.namespace | default .Release.Namespace -}}
+{{- .Values.publicConfigMap.namespace | default (include "spark-operator.namespace" .) -}}
 {{- end -}}
 
 {{/*

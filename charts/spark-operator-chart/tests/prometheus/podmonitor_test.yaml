@@ -98,3 +98,42 @@ tests:
       - equal:
           path: spec.jobLabel
           value: custom-job-label
+
+  - it: Should create pod monitor in the release namespace if `namespaceOverride` is not set
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1/PodMonitor
+    set:
+      prometheus:
+        metrics:
+          enable: true
+        podMonitor:
+          create: true
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: spark-operator
+      - equal:
+          path: spec.namespaceSelector.matchNames
+          value:
+            - spark-operator
+
+  - it: Should create pod monitor in `namespaceOverride` and select it if set
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1/PodMonitor
+    set:
+      namespaceOverride: spark-operator-system
+      prometheus:
+        metrics:
+          enable: true
+        podMonitor:
+          create: true
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: spark-operator-system
+      - equal:
+          path: spec.namespaceSelector.matchNames
+          value:
+            - spark-operator-system

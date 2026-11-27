@@ -57,3 +57,13 @@ tests:
         kind: ServiceAccount
         name: spark-operator-hook
         namespace: spark-operator
+
+- it: Should use `namespaceOverride` for the hook ClusterRoleBinding if set
+  set:
+    namespaceOverride: spark-operator-system
+    hook:
+      upgradeCrd: true
+  asserts:
+  - equal:
+      path: subjects[0].namespace
+      value: spark-operator-system

@@ -23,7 +23,7 @@ metadata:
     {{- include "spark-operator.webhook.labels" . | nindent 4 }}
   {{- if .Values.certManager.enable }}
   annotations:
-    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "spark-operator.certManager.certificate.name" . }}
+    cert-manager.io/inject-ca-from: {{ include "spark-operator.namespace" . }}/{{ include "spark-operator.certManager.certificate.name" . }}
   {{- end }}
 {{- $root := . -}}
 {{- $selectors := include "spark-operator.webhook.namespaceSelectors" . | fromYamlArray }}
@@ -34,7 +34,7 @@ webhooks:
   clientConfig:
     service:
       name: {{ include "spark-operator.webhook.serviceName" $root }}
-      namespace: {{ $root.Release.Namespace }}
+      namespace: {{ include "spark-operator.namespace" $root }}
       port: {{ $root.Values.webhook.port }}
       path: /validate-sparkoperator-k8s-io-v1beta2-sparkapplication
   sideEffects: None
@@ -59,7 +59,7 @@ webhooks:
   clientConfig:
     service:
       name: {{ include "spark-operator.webhook.serviceName" $root }}
-      namespace: {{ $root.Release.Namespace }}
+      namespace: {{ include "spark-operator.namespace" $root }}
       port: {{ $root.Values.webhook.port }}
       path: /validate-sparkoperator-k8s-io-v1beta2-scheduledsparkapplication
   sideEffects: None
@@ -84,7 +84,7 @@ webhooks:
   clientConfig:
     service:
       name: {{ include "spark-operator.webhook.serviceName" $root }}
-      namespace: {{ $root.Release.Namespace }}
+      namespace: {{ include "spark-operator.namespace" $root }}
       port: {{ $root.Values.webhook.port }}
       path: /validate-sparkoperator-k8s-io-v1alpha1-sparkconnect
   sideEffects: None

@@ -40,3 +40,24 @@ tests:
             port: 12345
             targetPort: pprof-test
             name: pprof-test
+
+  - it: Should create the pprof service in the release namespace if `namespaceOverride` is not set
+    set:
+      controller:
+        pprof:
+          enable: true
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: spark-operator
+
+  - it: Should create the pprof service in `namespaceOverride` if set
+    set:
+      namespaceOverride: spark-operator-system
+      controller:
+        pprof:
+          enable: true
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: spark-operator-system

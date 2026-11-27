@@ -19,7 +19,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ include "spark-operator.hook.clusterRoleBinding.name" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "spark-operator.namespace" . }}
   labels:
     {{- include "spark-operator.hook.labels" . | nindent 4 }}
   annotations:
@@ -33,5 +33,5 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: {{ include "spark-operator.hook.serviceAccount.name" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "spark-operator.namespace" . }}
 {{- end }}

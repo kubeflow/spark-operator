@@ -20,6 +20,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "spark-operator.webhook.deploymentName" . }}
+  namespace: {{ include "spark-operator.namespace" . }}
   labels:
     {{- include "spark-operator.webhook.labels" . | nindent 4 }}
   {{- with .Values.webhook.deploymentAnnotations }}
@@ -71,9 +72,9 @@ spec:
         - {{ printf "--namespace-selector=%s" $nsSelector | quote }}
         {{- end }}
         - --webhook-secret-name={{ include "spark-operator.webhook.secretName" . }}
-        - --webhook-secret-namespace={{ .Release.Namespace }}
+        - --webhook-secret-namespace={{ include "spark-operator.namespace" . }}
         - --webhook-svc-name={{ include "spark-operator.webhook.serviceName" . }}
-        - --webhook-svc-namespace={{ .Release.Namespace }}
+        - --webhook-svc-namespace={{ include "spark-operator.namespace" . }}
         - --webhook-port={{ .Values.webhook.port }}
         - --mutating-webhook-name={{ include "spark-operator.webhook.name" . }}
         - --validating-webhook-name={{ include "spark-operator.webhook.name" . }}
@@ -99,7 +100,7 @@ spec:
         {{ if .Values.webhook.leaderElection.enable }}
         - --leader-election=true
         - --leader-election-lock-name={{ include "spark-operator.webhook.leaderElectionName" . }}
-        - --leader-election-lock-namespace={{ .Release.Namespace }}
+        - --leader-election-lock-namespace={{ include "spark-operator.namespace" . }}
         - --leader-election-lease-duration={{ .Values.webhook.leaderElection.leaseDuration }}
         - --leader-election-renew-deadline={{ .Values.webhook.leaderElection.renewDeadline }}
         - --leader-election-retry-period={{ .Values.webhook.leaderElection.retryPeriod }}

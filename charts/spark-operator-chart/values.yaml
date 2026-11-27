@@ -22,6 +22,10 @@ nameOverride: ""
 # -- String to fully override release name.
 fullnameOverride: ""
 
+# -- Namespace to deploy the operator's namespaced resources into. Defaults to the release namespace.
+# The namespace must already exist; the chart does not create it.
+namespaceOverride: ""
+
 # -- Common labels to add to the resources.
 commonLabels: {}
 
@@ -31,7 +35,7 @@ publicConfigMap:
   # that let all authenticated users read it. Its name is fixed so that clients can find it,
   # so enable it for only one Spark Operator release per target namespace.
   create: false
-  # -- Namespace to create the ConfigMap, Role and RoleBinding in, e.g. `kube-public`. Defaults to the release namespace.
+  # -- Namespace to create the ConfigMap, Role and RoleBinding in, e.g. `kube-public`. Defaults to `namespaceOverride`, or the release namespace if that is unset.
   # The namespace must already exist and the installing user must be allowed to create these resources in it.
   namespace: ""
 

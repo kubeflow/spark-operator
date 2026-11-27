@@ -703,3 +703,29 @@ tests:
     asserts:
       - notExists:
           path: spec.template.spec.hostUsers
+
+  - it: Should deploy webhook to the release namespace if `namespaceOverride` is not set
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: spark-operator
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --webhook-svc-namespace=spark-operator
+
+  - it: Should deploy webhook to `namespaceOverride` and point its flags at it if set
+    set:
+      namespaceOverride: spark-operator-system
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: spark-operator-system
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --webhook-secret-namespace=spark-operator-system
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --webhook-svc-namespace=spark-operator-system
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-election-lock-namespace=spark-operator-system

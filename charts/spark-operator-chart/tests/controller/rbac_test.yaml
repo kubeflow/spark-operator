@@ -663,3 +663,51 @@ tests:
               - sparkconnects/finalizers
             verbs:
               - patch
+
+  - it: Should bind the controller service account in `namespaceOverride` if set
+    set:
+      namespaceOverride: spark-operator-system
+    documentIndex: 1
+    asserts:
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark-operator-controller
+            namespace: spark-operator-system
+          count: 1
+
+  - it: Should create controller role and rolebinding in `namespaceOverride` if set
+    set:
+      namespaceOverride: spark-operator-system
+    documentIndex: 3
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-controller
+          namespace: spark-operator-system
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark-operator-controller
+            namespace: spark-operator-system
+          count: 1
+
+  - it: Should treat `namespaceOverride` as the operator namespace when checking `spark.jobNamespaces`
+    set:
+      namespaceOverride: spark-operator-system
+      spark:
+        jobNamespaces:
+          - spark-operator-system
+          - default
+    asserts:
+      - hasDocuments:
+          count: 6
+      - notContains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark-operator-controller
+            namespace: spark-operator
