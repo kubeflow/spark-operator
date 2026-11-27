@@ -33,6 +33,7 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/features"
 )
 
 func TestSparkApplicationValidatorValidateCreate_NodeSelectorConflict(t *testing.T) {
@@ -657,6 +658,7 @@ func configMapRefs(names ...string) []v1beta2.NamePath {
 }
 
 func TestSparkApplicationValidatorValidateCreate_ClientModeWarning(t *testing.T) {
+	features.SetFeatureGateDuringTest(t, features.ClientMode, true)
 	validator := newTestValidator(t, false)
 
 	app := newSparkApplication()
@@ -684,6 +686,7 @@ func TestSparkApplicationValidatorValidateCreate_ClusterModeNoWarning(t *testing
 }
 
 func TestSparkApplicationValidatorValidateUpdate_ClientModeWarning(t *testing.T) {
+	features.SetFeatureGateDuringTest(t, features.ClientMode, true)
 	validator := newTestValidator(t, false)
 
 	oldApp := newSparkApplication()
@@ -696,5 +699,19 @@ func TestSparkApplicationValidatorValidateUpdate_ClientModeWarning(t *testing.T)
 	}
 	if len(warnings) != 1 || !strings.Contains(warnings[0], "spec.mode: client mode is deprecated") {
 		t.Fatalf("expected client mode deprecation warning, got %v", warnings)
+	}
+}
+
+func TestSparkApplicationValidatorValidateCreate_ClientModeDisabledByDefault(t *testing.T) {
+	features.SetFeatureGateDuringTest(t, features.ClientMode, false)
+	validator := newTestValidator(t, false)
+
+	for _, mode := range []v1beta2.DeployMode{v1beta2.DeployModeClient, v1beta2.DeployModeInClusterClient} {
+		app := newSparkApplication()
+		app.Spec.Mode = mode
+
+		if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "ClientMode feature gate") {
+			t.Fatalf("mode %q: expected ClientMode feature gate error, got %v", mode, err)
+		}
 	}
 }
