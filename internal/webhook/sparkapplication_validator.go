@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/features"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -67,6 +68,9 @@ func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, app *v1b
 	if err := v.validateName(app.Name); err != nil {
 		return nil, err
 	}
+	if err := validateDeployMode(&app.Spec, field.NewPath("spec")); err != nil {
+		return nil, err
+	}
 	if err := v.validateSpec(ctx, app); err != nil {
 		return nil, err
 	}
@@ -97,6 +101,10 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldApp *
 	// Skip validating when spec does not change.
 	if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 		return nil, nil
+	}
+
+	if err := validateDeployMode(&newApp.Spec, field.NewPath("spec")); err != nil {
+		return nil, err
 	}
 
 	if err := v.validateSpec(ctx, newApp); err != nil {
@@ -172,6 +180,17 @@ func deprecationWarnings(spec *v1beta2.SparkApplicationSpec, path *field.Path) a
 	return admission.Warnings{
 		fmt.Sprintf("%s: client mode is deprecated and will be removed in the next API version; use cluster mode or SparkConnect instead", path.Child("mode")),
 	}
+}
+
+// validateDeployMode rejects client modes unless the ClientMode feature gate is enabled.
+func validateDeployMode(spec *v1beta2.SparkApplicationSpec, path *field.Path) error {
+	if spec.Mode != v1beta2.DeployModeClient && spec.Mode != v1beta2.DeployModeInClusterClient {
+		return nil
+	}
+	if features.Enabled(features.ClientMode) {
+		return nil
+	}
+	return field.Forbidden(path.Child("mode"), fmt.Sprintf("%q mode is disabled; enable the %s feature gate to use it", spec.Mode, features.ClientMode))
 }
 
 // validateName ensures the SparkApplication metadata.name is a valid DNS-1035 label
