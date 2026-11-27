@@ -220,10 +220,10 @@ jobs:
 
       - name: Run chart-testing (install)
         if: steps.list-changed.outputs.changed == 'true'
-        run: |
-          KUBECONFIG="$PWD/.kube/config" ct install --target-branch ${STEPS_GET_BRANCH_OUTPUTS_BRANCH}
         env:
-          STEPS_GET_BRANCH_OUTPUTS_BRANCH: ${{ steps.get_branch.outputs.BRANCH }}
+          BRANCH: ${{ steps.get_branch.outputs.BRANCH }}
+        run: |
+          KUBECONFIG="$PWD/.kube/config" ct install --target-branch $BRANCH
 
   e2e-test:
     runs-on: ubuntu-latest
