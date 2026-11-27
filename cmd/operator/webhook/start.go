@@ -38,6 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -188,6 +189,8 @@ func NewStartCommand() *cobra.Command {
 	ctrl.RegisterFlags(flagSet)
 	zapOptions.BindFlags(flagSet)
 	command.Flags().AddGoFlagSet(flagSet)
+
+	utilfeature.DefaultMutableFeatureGate.AddFlag(command.Flags())
 
 	return command
 }
