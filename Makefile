@@ -384,7 +384,7 @@ kind-load-image: kind-create-cluster docker-build ## Load the image into the kin
 	$(KIND) load docker-image --name $(KIND_CLUSTER_NAME) $(IMAGE)
 
 .PHONY: kind-load-kubectl-image
-kind-load-kubectl-image: kind-create-cluster ## Build the Helm hook image and load it into the kind cluster.
+kind-load-kubectl-image: kind-create-cluster update-crd ## Build the Helm hook image and load it into the kind cluster.
 	$(CONTAINER_TOOL) build -f docker/Dockerfile.kubectl -t ghcr.io/kubeflow/spark-operator/kubectl:local .
 	$(KIND) load docker-image --name $(KIND_CLUSTER_NAME) ghcr.io/kubeflow/spark-operator/kubectl:local
 
