@@ -287,3 +287,49 @@ tests:
         value:
           runAsGroup: 65534
           fsGroup: 65534
+
+- it: Should backfill hardened defaults when only some `hook.securityContext` fields are present (e.g. --reuse-values from an older release)
+  set:
+    hook:
+      upgradeCrd: true
+      securityContext:
+        runAsUser: 65534
+        readOnlyRootFilesystem: null
+        privileged: null
+        allowPrivilegeEscalation: null
+        runAsNonRoot: null
+        capabilities: null
+        seccompProfile: null
+  asserts:
+    - equal:
+        path: spec.template.spec.containers[0].securityContext
+        value:
+          runAsUser: 65534
+          readOnlyRootFilesystem: true
+          privileged: false
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+
+- it: Should keep explicitly relaxed `hook.securityContext` fields
+  set:
+    hook:
+      upgradeCrd: true
+      securityContext:
+        runAsNonRoot: false
+        seccompProfile:
+          type: Unconfined
+  asserts:
+    - equal:
+        path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+        value: false
+    - equal:
+        path: spec.template.spec.containers[0].securityContext.seccompProfile.type
+        value: Unconfined
+    - equal:
+        path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+        value: true
