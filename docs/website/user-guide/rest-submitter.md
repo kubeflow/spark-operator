@@ -15,8 +15,91 @@ This guide walks you through deploying the REST submitter service and integratin
 Operator.
 
 ```{note}
-REST submission is an alpha feature. Enable the `RestSubmitter` feature gate to use it.
+REST submission is an alpha feature. Enable the `RestSubmitter` feature gate to use it. Review
+[Limitations](#limitations) before you enable it.
 ```
+
+## Limitations
+
+The submitter creates the driver pod with its own Spark libraries and service account, not those of
+the operator or the application. Several differences from `spark-submit` follow.
+
+### The submitter's Spark version decides the driver pod
+
+Spark settings that apply when the driver pod is created only work if the submitter's Spark
+version supports them. Settings that the driver reads at runtime are not affected. If the submitter
+runs an older Spark version than your applications, newer driver pod settings and resources are not
+applied. The driver pod's `spark-version` label also shows the submitter's Spark version.
+
+Choose a submitter image whose Spark version matches the version your applications run. One
+operator sends every application to a single `submitter.serviceUrl`, so it cannot route
+applications on different Spark versions to different submitters.
+
+### Extra RBAC for the submitter
+
+The submitter chart grants its service account only the access needed to create a basic driver pod.
+Spark creates any other Kubernetes resources an application needs with the submitter's service
+account. Depending on the submitter's Spark version and your application settings, these can include
+persistent volume claims, secrets, or network policies.
+
+Without access, the submission fails with a `forbidden` error. The operator tries the submission up
+to `--submitter-max-retries` times (3 by default), then marks the application failed, with the
+`forbidden` message in its status.
+
+Check which resources your applications create and grant them in each job namespace. For example:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: spark-submitter-extra
+  namespace: <job-namespace>
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims", "secrets"]
+    verbs: ["get", "create", "patch", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "create", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: spark-submitter-extra
+  namespace: <job-namespace>
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: spark-submitter-extra
+subjects:
+  - kind: ServiceAccount
+    name: spark-submitter
+    namespace: spark-submitter
+```
+
+Grant only the resources your applications use.
+
+### Work that moves into the submitter pod
+
+`spark-submit` work that does not create Kubernetes resources now runs in the shared submitter
+process instead of a separate process per application:
+
+- `--packages` (`.spec.deps.packages`) are resolved in the submitter pod. The pod needs access to the
+  Maven repositories, and resolution time counts against `--submitter-request-timeout`.
+- `file://` dependencies are read from the submitter pod's file system and uploaded to
+  `spark.kubernetes.file.upload.path` with the submitter's credentials.
+- Kerberos delegation tokens are obtained in the submitter process.
+- `spark-defaults.conf` comes from the submitter image.
+
+Prefer dependencies that are built into the application image or referenced with remote URIs.
+
+### Other differences
+
+- Only `cluster` deploy mode is supported.
+- The controller does not start until the submitter is reachable, up to
+  `--submitter-startup-timeout` (5 minutes by default).
+- The submitter serves plain HTTP with cluster-wide RBAC by default. See `jobNamespaces` in
+  [Deploy the submitter service](#deploy-the-submitter-service) and [Enable mTLS](#enable-mtls).
 
 ## Prerequisites
 
