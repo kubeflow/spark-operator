@@ -55,20 +55,21 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
+        {{- /*
+          Backfill hardened defaults for any top-level key the user has not set.
+          Covers `helm upgrade --reuse-values` from releases whose stored values
+          predate hook.securityContext. To relax a field, set it explicitly
+          (e.g. runAsNonRoot: false); removing it with null re-applies the default.
+        */}}
+        {{- $hookSCDefaults := dict "readOnlyRootFilesystem" true "privileged" false "allowPrivilegeEscalation" false "runAsNonRoot" true "capabilities" (dict "drop" (list "ALL")) "seccompProfile" (dict "type" "RuntimeDefault") }}
+        {{- $hookSC := deepCopy (.Values.hook.securityContext | default dict) }}
+        {{- range $k, $v := $hookSCDefaults }}
+        {{- if not (hasKey $hookSC $k) }}
+        {{- $_ := set $hookSC $k $v }}
+        {{- end }}
+        {{- end }}
         securityContext:
-          {{- with .Values.hook.securityContext }}
-          {{- toYaml . | nindent 10 }}
-          {{- else }}
-          readOnlyRootFilesystem: true
-          privileged: false
-          allowPrivilegeEscalation: false
-          runAsNonRoot: true
-          capabilities:
-            drop:
-            - ALL
-          seccompProfile:
-            type: RuntimeDefault
-          {{- end }}
+          {{- toYaml $hookSC | nindent 10 }}
       {{- with .Values.image.pullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
