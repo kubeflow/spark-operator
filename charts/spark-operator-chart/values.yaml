@@ -94,7 +94,7 @@ hook:
   # -- Security context for the Helm hook Job pod.
   podSecurityContext: {}
 
-  # -- Security context for the Helm hook Job container.
+  # -- Security context for the Helm hook Job container. Keys left unset fall back to these hardened defaults; set a key explicitly (e.g. `runAsNonRoot: false`) to relax it.
   securityContext:
     readOnlyRootFilesystem: true
     privileged: false
