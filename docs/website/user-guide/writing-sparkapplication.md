@@ -37,6 +37,17 @@ A `SparkApplication` should set `.spec.mode` to `cluster`. The driver pod will t
 `.spec.mode: client` is deprecated and will be removed in the next API version. Client mode runs the driver inside the operator, which is a security risk. For interactive workloads, use [SparkConnect](spark-connect.md) instead. See [#3253](https://github.com/kubeflow/spark-operator/issues/3253).
 :::
 
+`client` and `in-cluster-client` modes are disabled by default. The webhook rejects them, and the controller fails their submission. To enable them, turn on the `ClientMode` feature gate in your operator values file:
+
+```yaml
+controller:
+  featureGates:
+    - name: ClientMode
+      enabled: true
+```
+
+`controller.featureGates` replaces the whole list, so include any other feature gates you already enable. The same setting applies to both the controller and the webhook.
+
 ## Specifying Application Dependencies
 
 Often Spark applications need additional files additionally to the main application resource to run. Such application dependencies can include for example jars and data files the application needs at runtime. When using the `spark-submit` script to submit a Spark application, such dependencies are specified using the `--jars` and `--files` options. To support specification of application dependencies, a `SparkApplication` uses an optional field `.spec.deps` that in turn supports specifying jars and files, respectively. More specifically, the optional fields `.spec.deps.jars` and`.spec.deps.files` correspond to the `--jars` and `--files` options of the `spark-submit` script, respectively.
