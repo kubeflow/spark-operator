@@ -39,6 +39,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/sparkapplication"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/features"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -632,6 +633,56 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(submitter.submitted).NotTo(BeNil())
 			Expect(submitter.submitted.Spec.Driver.ServiceAccount).To(BeNil())
 			Expect(submitter.submitted.Spec.Driver.Template.Spec.ServiceAccountName).To(Equal("template-service-account"))
+		})
+	})
+
+	Context("When reconciling a new SparkApplication in client mode", func() {
+		ctx := context.Background()
+		appName := "test-client-mode"
+		appNamespace := "default"
+		key := types.NamespacedName{Name: appName, Namespace: appNamespace}
+
+		BeforeEach(func() {
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNamespace},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode:                v1beta2.DeployModeClient,
+					MainApplicationFile: ptr.To("local:///dummy.jar"),
+				},
+			}
+			v1beta2.SetSparkApplicationDefaults(app)
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			app.Status.AppState.State = v1beta2.ApplicationStateNew
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+		})
+
+		It("Should fail submission when the ClientMode feature gate is disabled", func() {
+			features.SetFeatureGateDuringTest(GinkgoTB(), features.ClientMode, false)
+			submitter := &recordingSubmitter{}
+			reconciler := sparkapplication.NewReconciler(nil, k8sClient.Scheme(), k8sClient, events.NewFakeRecorder(3), nil, submitter, sparkapplication.Options{Namespaces: []string{appNamespace}})
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(submitter.submitted).To(BeNil())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailedSubmission))
+			Expect(app.Status.AppState.ErrorMessage).To(ContainSubstring("ClientMode feature gate"))
+		})
+
+		It("Should submit when the ClientMode feature gate is enabled", func() {
+			features.SetFeatureGateDuringTest(GinkgoTB(), features.ClientMode, true)
+			submitter := &recordingSubmitter{}
+			reconciler := sparkapplication.NewReconciler(nil, k8sClient.Scheme(), k8sClient, events.NewFakeRecorder(3), nil, submitter, sparkapplication.Options{Namespaces: []string{appNamespace}})
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(submitter.submitted).NotTo(BeNil())
 		})
 	})
 
