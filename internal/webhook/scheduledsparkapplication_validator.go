@@ -55,6 +55,9 @@ func (v *ScheduledSparkApplicationValidator) ValidateCreate(ctx context.Context,
 	if err := v.validateName(app.Name); err != nil {
 		return nil, err
 	}
+	if err := validateDeployMode(&app.Spec.Template, field.NewPath("spec", "template")); err != nil {
+		return nil, err
+	}
 	if err := v.validate(app); err != nil {
 		return nil, err
 	}
@@ -77,6 +80,10 @@ func (v *ScheduledSparkApplicationValidator) ValidateUpdate(ctx context.Context,
 	// Skip validating when spec does not change.
 	if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 		return nil, nil
+	}
+
+	if err := validateDeployMode(&newApp.Spec.Template, field.NewPath("spec", "template")); err != nil {
+		return nil, err
 	}
 
 	if err := v.validate(newApp); err != nil {
