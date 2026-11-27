@@ -17,6 +17,7 @@ limitations under the License.
 package util_test
 
 import (
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -24,6 +25,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -343,6 +345,24 @@ var _ = Describe("GetDefaultUIIngressName", func() {
 		Expect(len(serviceName)).To(BeNumerically("<=", 63))
 		Expect(serviceName).To(HavePrefix(appWithLongName.Name[:42]))
 		Expect(serviceName).To(HaveSuffix("-ui-ingress"))
+	})
+})
+
+var _ = Describe("GetDriverIngressServiceName", func() {
+	It("Should return the default driver ingress service name", func() {
+		app := &v1beta2.SparkApplication{ObjectMeta: metav1.ObjectMeta{Name: "test-app"}}
+		Expect(util.GetDriverIngressServiceName(app, 4040)).To(Equal("test-app-driver-4040"))
+	})
+
+	It("Should keep the service name a valid DNS-1035 label for the longest accepted app name", func() {
+		app := &v1beta2.SparkApplication{ObjectMeta: metav1.ObjectMeta{Name: "a" + strings.Repeat("b", 62)}}
+		for _, port := range []int32{80, 4040, 65535} {
+			serviceName := util.GetDriverIngressServiceName(app, port)
+			Expect(validation.IsDNS1035Label(serviceName)).To(BeEmpty(), serviceName)
+			Expect(serviceName).To(HavePrefix(app.Name[:41]))
+		}
+		Expect(util.GetDriverIngressServiceName(app, 4040)).To(HaveSuffix("-driver-4040"))
+		Expect(util.GetDriverIngressServiceName(app, 4040)).NotTo(Equal(util.GetDriverIngressServiceName(app, 4041)))
 	})
 })
 

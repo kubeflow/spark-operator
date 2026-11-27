@@ -448,10 +448,6 @@ func getDriverIngressServicePortName(driverIngressConfiguration *v1beta2.DriverI
 	return fmt.Sprintf("driver-ing-%d", port)
 }
 
-func getDriverIngressServiceName(app *v1beta2.SparkApplication, port int32) string {
-	return fmt.Sprintf("%s-driver-%d", app.Name, port)
-}
-
 func getDriverIngressServiceType(driverIngressConfiguration *v1beta2.DriverIngressConfiguration) corev1.ServiceType {
 	if driverIngressConfiguration.ServiceType != nil {
 		return *driverIngressConfiguration.ServiceType
@@ -489,7 +485,7 @@ func (r *Reconciler) createDriverIngressServiceFromConfiguration(
 	if err != nil {
 		return nil, err
 	}
-	serviceName := getDriverIngressServiceName(app, port)
+	serviceName := util.GetDriverIngressServiceName(app, port)
 	serviceType := getDriverIngressServiceType(driverIngressConfiguration)
 	serviceAnnotations := getDriverIngressServiceAnnotations(driverIngressConfiguration)
 	serviceLabels := getDriverIngressServiceLabels(driverIngressConfiguration)
