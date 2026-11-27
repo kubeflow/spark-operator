@@ -715,3 +715,16 @@ func TestSparkApplicationValidatorValidateCreate_ClientModeDisabledByDefault(t *
 		}
 	}
 }
+
+func TestSparkApplicationValidatorValidateUpdate_ClientModeDisabledByDefault(t *testing.T) {
+	features.SetFeatureGateDuringTest(t, features.ClientMode, false)
+	validator := newTestValidator(t, false)
+
+	oldApp := newSparkApplication()
+	newApp := newSparkApplication()
+	newApp.Spec.Mode = v1beta2.DeployModeClient
+
+	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err == nil || !strings.Contains(err.Error(), "ClientMode feature gate") {
+		t.Fatalf("expected ClientMode feature gate error, got %v", err)
+	}
+}
