@@ -17,6 +17,7 @@ limitations under the License.
 package volcano
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -297,6 +298,128 @@ func TestSchedule(t *testing.T) {
 					actualQuantity := capturedPodGroup.Spec.MinResources.Name(resourceName, resource.DecimalSI)
 					assert.Equal(t, expectedQuantity.Value(), actualQuantity.Value(),
 						"Resource %s quantity should match calculated resources", resourceName)
+				}
+			}
+		})
+	}
+}
+
+func TestSchedule_ExistingPodGroup(t *testing.T) {
+	newApp := func(resources corev1.ResourceList, priorityClassName *string) *v1beta2.SparkApplication {
+		return &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "default",
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				Mode: v1beta2.DeployModeCluster,
+				BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+					Resources:         resources,
+					PriorityClassName: priorityClassName,
+				},
+			},
+		}
+	}
+	staleResources := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("2"),
+		corev1.ResourceMemory: resource.MustParse("4Gi"),
+	}
+	newResources := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("8"),
+		corev1.ResourceMemory: resource.MustParse("16Gi"),
+	}
+	existingPodGroup := func(app *v1beta2.SparkApplication, minMember int32, resources corev1.ResourceList, priorityClassName string) *v1beta1.PodGroup {
+		return &v1beta1.PodGroup{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      getPodGroupName(app),
+				Namespace: app.Namespace,
+			},
+			Spec: v1beta1.PodGroupSpec{
+				MinMember:         minMember,
+				MinResources:      &resources,
+				PriorityClassName: priorityClassName,
+			},
+		}
+	}
+
+	testCases := []struct {
+		name                 string
+		existing             func(app *v1beta2.SparkApplication) *v1beta1.PodGroup
+		app                  *v1beta2.SparkApplication
+		expectedResources    corev1.ResourceList
+		expectedPriority     string
+		expectedMinMember    int32
+		expectedUpdateCalled bool
+	}{
+		{
+			name: "stale MinResources and PriorityClassName are updated",
+			app:  newApp(newResources, ptr.To("high")),
+			existing: func(app *v1beta2.SparkApplication) *v1beta1.PodGroup {
+				return existingPodGroup(app, 1, staleResources, "low")
+			},
+			expectedResources:    newResources,
+			expectedPriority:     "high",
+			expectedMinMember:    1,
+			expectedUpdateCalled: true,
+		},
+		{
+			name: "stale MinMember is updated",
+			app:  newApp(newResources, ptr.To("high")),
+			existing: func(app *v1beta2.SparkApplication) *v1beta1.PodGroup {
+				return existingPodGroup(app, 5, newResources, "high")
+			},
+			expectedResources:    newResources,
+			expectedPriority:     "high",
+			expectedMinMember:    1,
+			expectedUpdateCalled: true,
+		},
+		{
+			name: "PriorityClassName is cleared when no longer requested",
+			app:  newApp(newResources, nil),
+			existing: func(app *v1beta2.SparkApplication) *v1beta1.PodGroup {
+				return existingPodGroup(app, 1, newResources, "low")
+			},
+			expectedResources:    newResources,
+			expectedPriority:     "",
+			expectedMinMember:    1,
+			expectedUpdateCalled: true,
+		},
+		{
+			name: "up-to-date PodGroup is not updated",
+			app:  newApp(newResources, ptr.To("high")),
+			existing: func(app *v1beta2.SparkApplication) *v1beta1.PodGroup {
+				return existingPodGroup(app, 1, newResources, "high")
+			},
+			expectedResources:    newResources,
+			expectedPriority:     "high",
+			expectedMinMember:    1,
+			expectedUpdateCalled: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := fakevolcanoclientset.NewSimpleClientset(tc.existing(tc.app))
+			updateCalled := false
+			client.PrependReactor("update", "podgroups", func(clienttesting.Action) (bool, runtime.Object, error) {
+				updateCalled = true
+				return false, nil, nil
+			})
+
+			scheduler := &Scheduler{volcanoClient: client}
+			assert.NoError(t, scheduler.Schedule(tc.app))
+
+			assert.Equal(t, tc.expectedUpdateCalled, updateCalled)
+
+			pg, err := client.SchedulingV1beta1().PodGroups(tc.app.Namespace).Get(context.TODO(), getPodGroupName(tc.app), metav1.GetOptions{})
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedMinMember, pg.Spec.MinMember)
+			assert.Equal(t, tc.expectedPriority, pg.Spec.PriorityClassName)
+			if assert.NotNil(t, pg.Spec.MinResources) {
+				assert.Len(t, *pg.Spec.MinResources, len(tc.expectedResources))
+				for name, expected := range tc.expectedResources {
+					actual := (*pg.Spec.MinResources)[name]
+					assert.True(t, expected.Equal(actual), "resource %s: expected %s, got %s", name, expected.String(), actual.String())
 				}
 			}
 		})

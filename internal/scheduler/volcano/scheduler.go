@@ -22,6 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
@@ -180,6 +181,12 @@ func (s *Scheduler) syncPodGroup(app *v1beta2.SparkApplication, size int32, minR
 	name := getPodGroupName(app)
 	namespace := app.Namespace
 
+	// priorityClassName is the desired PriorityClassName of the PodGroup, empty if not requested.
+	priorityClassName := ""
+	if app.Spec.BatchSchedulerOptions != nil && app.Spec.BatchSchedulerOptions.PriorityClassName != nil {
+		priorityClassName = *app.Spec.BatchSchedulerOptions.PriorityClassName
+	}
+
 	if pg, err = s.volcanoClient.SchedulingV1beta1().PodGroups(namespace).Get(context.TODO(), name, metav1.GetOptions{}); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
@@ -194,8 +201,9 @@ func (s *Scheduler) syncPodGroup(app *v1beta2.SparkApplication, size int32, minR
 				},
 			},
 			Spec: v1beta1.PodGroupSpec{
-				MinMember:    size,
-				MinResources: &minResource,
+				MinMember:         size,
+				MinResources:      &minResource,
+				PriorityClassName: priorityClassName,
 			},
 			Status: v1beta1.PodGroupStatus{
 				Phase: v1beta1.PodGroupPending,
@@ -207,23 +215,27 @@ func (s *Scheduler) syncPodGroup(app *v1beta2.SparkApplication, size int32, minR
 			if app.Spec.BatchSchedulerOptions.Queue != nil {
 				podGroup.Spec.Queue = *app.Spec.BatchSchedulerOptions.Queue
 			}
-			// Update pod group priorityClassName if it's specified in Spark Application
-			if app.Spec.BatchSchedulerOptions.PriorityClassName != nil {
-				podGroup.Spec.PriorityClassName = *app.Spec.BatchSchedulerOptions.PriorityClassName
-			}
 		}
-		_, err = s.volcanoClient.SchedulingV1beta1().PodGroups(namespace).Create(context.TODO(), &podGroup, metav1.CreateOptions{})
+		if _, err = s.volcanoClient.SchedulingV1beta1().PodGroups(namespace).Create(context.TODO(), &podGroup, metav1.CreateOptions{}); err == nil {
+			logger.Info("Created PodGroup", "name", name, "namespace", namespace)
+		}
 	} else {
-		if pg.Spec.MinMember != size {
-			pg.Spec.MinMember = size
-			_, err = s.volcanoClient.SchedulingV1beta1().PodGroups(namespace).Update(context.TODO(), pg, metav1.UpdateOptions{})
+		// The PodGroup may outlive a previous submission of the application (e.g. on resubmission or rerun),
+		// so reconcile every field derived from the application spec, not only MinMember.
+		updated := pg.DeepCopy()
+		updated.Spec.MinMember = size
+		updated.Spec.MinResources = &minResource
+		updated.Spec.PriorityClassName = priorityClassName
+		if !equality.Semantic.DeepEqual(pg.Spec, updated.Spec) {
+			if _, err = s.volcanoClient.SchedulingV1beta1().PodGroups(namespace).Update(context.TODO(), updated, metav1.UpdateOptions{}); err == nil {
+				logger.Info("Updated PodGroup", "name", name, "namespace", namespace)
+			}
 		}
 	}
 
 	if err != nil {
 		return fmt.Errorf("failed to sync PodGroup with error: %s. Abandon schedule pods via volcano", err)
 	}
-	logger.Info("Created PodGroup", "name", name, "namespace", namespace)
 
 	return nil
 }
