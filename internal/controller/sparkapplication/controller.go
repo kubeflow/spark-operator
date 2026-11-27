@@ -52,6 +52,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/volcano"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/yunikorn"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/features"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -990,6 +991,11 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 		}
 		r.recordSparkApplicationEvent(app)
 	}()
+
+	if (app.Spec.Mode == v1beta2.DeployModeClient || app.Spec.Mode == v1beta2.DeployModeInClusterClient) && !features.Enabled(features.ClientMode) {
+		submitErr = fmt.Errorf("%q mode is disabled; enable the %s feature gate to use it", app.Spec.Mode, features.ClientMode)
+		return
+	}
 
 	if err := r.configWebUI(ctx, app); err != nil {
 		submitErr = fmt.Errorf("failed to configure web UI: %v", err)
