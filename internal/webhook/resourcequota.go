@@ -82,7 +82,7 @@ func getResourceList(app *v1beta2.SparkApplication) (corev1.ResourceList, error)
 
 func getCoresRequests(app *v1beta2.SparkApplication) (corev1.ResourceList, error) {
 	// Calculate driver cores requests.
-	driverCoresRequests, err := getSparkPodCoresRequests(&app.Spec.Driver.SparkPodSpec, 1)
+	driverCoresRequests, err := getSparkPodCoresRequests(&app.Spec.Driver.SparkPodSpec, app.Spec.Driver.CoreRequest, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func getCoresRequests(app *v1beta2.SparkApplication) (corev1.ResourceList, error
 	if app.Spec.Executor.Instances != nil {
 		replicas = int64(*app.Spec.Executor.Instances)
 	}
-	executorCoresRequests, err := getSparkPodCoresRequests(&app.Spec.Executor.SparkPodSpec, replicas)
+	executorCoresRequests, err := getSparkPodCoresRequests(&app.Spec.Executor.SparkPodSpec, app.Spec.Executor.CoreRequest, replicas)
 	if err != nil {
 		return nil, err
 	}
@@ -100,9 +100,17 @@ func getCoresRequests(app *v1beta2.SparkApplication) (corev1.ResourceList, error
 	return util.SumResourceList([]corev1.ResourceList{driverCoresRequests, executorCoresRequests}), nil
 }
 
-func getSparkPodCoresRequests(podSpec *v1beta2.SparkPodSpec, replicas int64) (corev1.ResourceList, error) {
+// getSparkPodCoresRequests mirrors Spark, which sets the pod CPU request from
+// spark.kubernetes.{driver,executor}.request.cores when given, else from cores.
+func getSparkPodCoresRequests(podSpec *v1beta2.SparkPodSpec, coreRequest *string, replicas int64) (corev1.ResourceList, error) {
 	var milliCores int64
-	if podSpec.Cores != nil {
+	if coreRequest != nil {
+		quantity, err := resource.ParseQuantity(*coreRequest)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse coreRequest %q: %v", *coreRequest, err)
+		}
+		milliCores = quantity.MilliValue()
+	} else if podSpec.Cores != nil {
 		milliCores = int64(*podSpec.Cores) * 1000
 	} else {
 		milliCores = common.DefaultCPUMilliCores
