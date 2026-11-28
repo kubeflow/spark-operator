@@ -33,7 +33,6 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
-	"github.com/kubeflow/spark-operator/v2/pkg/features"
 )
 
 func TestSparkApplicationValidatorValidateCreate_NodeSelectorConflict(t *testing.T) {
@@ -657,22 +656,6 @@ func configMapRefs(names ...string) []v1beta2.NamePath {
 	return refs
 }
 
-func TestSparkApplicationValidatorValidateCreate_ClientModeWarning(t *testing.T) {
-	features.SetFeatureGateDuringTest(t, features.ClientMode, true)
-	validator := newTestValidator(t, false)
-
-	app := newSparkApplication()
-	app.Spec.Mode = v1beta2.DeployModeClient
-
-	warnings, err := validator.ValidateCreate(context.Background(), app)
-	if err != nil {
-		t.Fatalf("expected success, got %v", err)
-	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], "spec.mode: client mode is deprecated") {
-		t.Fatalf("expected client mode deprecation warning, got %v", warnings)
-	}
-}
-
 func TestSparkApplicationValidatorValidateCreate_ClusterModeNoWarning(t *testing.T) {
 	validator := newTestValidator(t, false)
 
@@ -685,46 +668,27 @@ func TestSparkApplicationValidatorValidateCreate_ClusterModeNoWarning(t *testing
 	}
 }
 
-func TestSparkApplicationValidatorValidateUpdate_ClientModeWarning(t *testing.T) {
-	features.SetFeatureGateDuringTest(t, features.ClientMode, true)
-	validator := newTestValidator(t, false)
-
-	oldApp := newSparkApplication()
-	newApp := newSparkApplication()
-	newApp.Spec.Mode = v1beta2.DeployModeClient
-
-	warnings, err := validator.ValidateUpdate(context.Background(), oldApp, newApp)
-	if err != nil {
-		t.Fatalf("expected success, got %v", err)
-	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], "spec.mode: client mode is deprecated") {
-		t.Fatalf("expected client mode deprecation warning, got %v", warnings)
-	}
-}
-
-func TestSparkApplicationValidatorValidateCreate_ClientModeDisabledByDefault(t *testing.T) {
-	features.SetFeatureGateDuringTest(t, features.ClientMode, false)
+func TestSparkApplicationValidatorValidateCreate_ClientModeRejected(t *testing.T) {
 	validator := newTestValidator(t, false)
 
 	for _, mode := range []v1beta2.DeployMode{v1beta2.DeployModeClient, v1beta2.DeployModeInClusterClient} {
 		app := newSparkApplication()
 		app.Spec.Mode = mode
 
-		if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "ClientMode feature gate") {
-			t.Fatalf("mode %q: expected ClientMode feature gate error, got %v", mode, err)
+		if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "no longer supported") {
+			t.Fatalf("mode %q: expected client mode to be rejected, got %v", mode, err)
 		}
 	}
 }
 
-func TestSparkApplicationValidatorValidateUpdate_ClientModeDisabledByDefault(t *testing.T) {
-	features.SetFeatureGateDuringTest(t, features.ClientMode, false)
+func TestSparkApplicationValidatorValidateUpdate_ClientModeRejected(t *testing.T) {
 	validator := newTestValidator(t, false)
 
 	oldApp := newSparkApplication()
 	newApp := newSparkApplication()
 	newApp.Spec.Mode = v1beta2.DeployModeClient
 
-	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err == nil || !strings.Contains(err.Error(), "ClientMode feature gate") {
-		t.Fatalf("expected ClientMode feature gate error, got %v", err)
+	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err == nil || !strings.Contains(err.Error(), "no longer supported") {
+		t.Fatalf("expected client mode to be rejected, got %v", err)
 	}
 }
