@@ -61,7 +61,7 @@ func (v *ScheduledSparkApplicationValidator) ValidateCreate(ctx context.Context,
 	if err := v.validate(app); err != nil {
 		return nil, err
 	}
-	return deprecationWarnings(&app.Spec.Template, field.NewPath("spec", "template")), nil
+	return nil, nil
 }
 
 // ValidateUpdate implements admission.Validator.
@@ -89,7 +89,7 @@ func (v *ScheduledSparkApplicationValidator) ValidateUpdate(ctx context.Context,
 	if err := v.validate(newApp); err != nil {
 		return nil, err
 	}
-	return deprecationWarnings(&newApp.Spec.Template, field.NewPath("spec", "template")), nil
+	return nil, nil
 }
 
 // ValidateDelete implements admission.Validator.
