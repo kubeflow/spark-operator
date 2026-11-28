@@ -217,7 +217,7 @@ unit-test: setup-envtest ## Run unit tests.
 
 .PHONY: e2e-test
 e2e-test: IMAGE_TAG=local
-e2e-test: envtest kind-load-image kind-load-spark-image ## Run the e2e tests against a Kind k8s instance that is spun up.
+e2e-test: envtest kind-load-image kind-load-kubectl-image kind-load-spark-image ## Run the e2e tests against a Kind k8s instance that is spun up.
 	@echo "Running e2e tests (deploy_method=$(DEPLOY_METHOD))..."
 	cd test/e2e && DEPLOY_METHOD=$(DEPLOY_METHOD) IMAGE_TAG=$(IMAGE_TAG) KUBECONFIG=$(KIND_KUBE_CONFIG) go test ./... -v -ginkgo.v -timeout 30m
 
@@ -383,6 +383,11 @@ kind-create-cluster: kind ## Create a kind cluster for integration tests.
 kind-load-image: kind-create-cluster docker-build ## Load the image into the kind cluster.
 	$(KIND) load docker-image --name $(KIND_CLUSTER_NAME) $(IMAGE)
 
+.PHONY: kind-load-kubectl-image
+kind-load-kubectl-image: kind-create-cluster update-crd ## Build the Helm hook image and load it into the kind cluster.
+	$(CONTAINER_TOOL) build -f docker/Dockerfile.kubectl -t ghcr.io/kubeflow/spark-operator/kubectl:local .
+	$(KIND) load docker-image --name $(KIND_CLUSTER_NAME) ghcr.io/kubeflow/spark-operator/kubectl:local
+
 # SPARK_IMAGE is the Spark runtime image used by drivers/executors. Defaults to
 # the same tag used by examples/spark-pi.yaml so manual e2e checks line up with
 # the canonical example. Override on the command line if you need a different one.
@@ -412,7 +417,7 @@ uninstall-crd: manifests ## Uninstall CRDs from the K8s cluster specified in .ku
 
 .PHONY: deploy
 deploy: IMAGE_TAG=local
-deploy: helm manifests update-crd kind-load-image kind-load-spark-image ## Deploy controller to the K8s cluster specified in .kube/config.
+deploy: helm manifests update-crd kind-load-image kind-load-kubectl-image kind-load-spark-image ## Deploy controller to the K8s cluster specified in .kube/config.
 	KUBECONFIG=$(KIND_KUBE_CONFIG) $(HELM) upgrade --install -f charts/spark-operator-chart/ci/ci-values.yaml spark-operator ./charts/spark-operator-chart/
 
 .PHONY: undeploy

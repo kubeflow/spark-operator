@@ -61,6 +61,17 @@ helm upgrade [RELEASE_NAME] spark-operator/spark-operator [flags]
 
 See [helm upgrade](https://helm.sh/docs/helm/helm_upgrade) for command documentation.
 
+#### Upgrade note: the CRD upgrade hook now runs as non-root
+
+In chart versions after 2.6.0, the CRD upgrade hook Job (`hook.upgradeCrd: true`) runs with `runAsNonRoot: true` and `seccompProfile.type: RuntimeDefault`, and the `kubectl` hook image runs as UID `65534`.
+If `hook.image` resolves to an image whose default user is root — for example an older `kubectl` hook image pinned with `hook.image.tag`, or a custom or mirrored image without a numeric non-root `USER` — the kubelet refuses to start the hook container (`CreateContainerConfigError: container has runAsNonRoot and image will run as root`) and `helm install`/`helm upgrade` fails at the pre-install/pre-upgrade hook.
+
+To resolve this, do one of the following:
+
+- Use the hook image that matches the chart version (the default when `hook.image.tag` is unset), or rebuild your custom image with a numeric non-root `USER`.
+- Keep the image and run it as a non-root UID: `--set hook.securityContext.runAsUser=65534`.
+- As a last resort, `--set hook.securityContext.runAsNonRoot=false`. This does not pass the `restricted` Pod Security Standard.
+
 ### Uninstall the chart
 
 ```shell
@@ -95,6 +106,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | hook.tolerations | list | `[]` | List of node taints to tolerate for the Helm hook Job. |
 | hook.labels | object | `{}` | Extra labels for the Helm hook Job pod. |
 | hook.annotations | object | `{}` | Extra annotations for the Helm hook Job pod. |
+| hook.podSecurityContext | object | `{}` | Security context for the Helm hook Job pod. |
+| hook.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"privileged":false,"readOnlyRootFilesystem":true,"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the Helm hook Job container. Keys left unset fall back to these hardened defaults; set a key explicitly (e.g. `runAsNonRoot: false`) to relax it. |
 | controller.replicas | int | `1` | Number of replicas of controller. |
 | controller.featureGates | list | `[{"enabled":false,"name":"PartialRestart"},{"enabled":false,"name":"LoadSparkDefaults"},{"enabled":false,"name":"RestSubmitter"},{"enabled":false,"name":"DefaultTimeToLive"}]` | Feature gates to enable or disable specific features. |
 | controller.revisionHistoryLimit | int | `10` | The number of old history to retain to allow rollback. |
