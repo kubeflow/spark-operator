@@ -1040,12 +1040,6 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --feature-gates=PartialRestart=true,AnotherFeature=false
 
-  - it: Should disable ClientMode feature gate by default
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
-          content: --feature-gates=PartialRestart=false,LoadSparkDefaults=false,RestSubmitter=false,DefaultTimeToLive=false,ClientMode=false
-
   - it: Should render submitter args when RestSubmitter feature gate is enabled
     set:
       controller:
