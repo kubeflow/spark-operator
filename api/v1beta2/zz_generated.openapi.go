@@ -2242,7 +2242,7 @@ func schema_spark_operator_v2_api_v1beta2_SparkApplicationSpec(ref common.Refere
 					},
 					"mode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Mode is the deployment mode of the Spark application. The client mode is deprecated and will be removed in the next API version.",
+							Description: "Mode is the deployment mode of the Spark application. Only cluster mode is supported. Client mode has been removed, see https://github.com/kubeflow/spark-operator/issues/3253.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

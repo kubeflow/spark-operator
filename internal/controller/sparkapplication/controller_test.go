@@ -635,6 +635,25 @@ var _ = Describe("SparkApplication Controller", func() {
 		})
 	})
 
+	Context("When creating a SparkApplication in client mode", func() {
+		ctx := context.Background()
+
+		It("Should be rejected by the API server because only cluster mode is supported", func() {
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-client-mode", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode:                v1beta2.DeployModeClient,
+					MainApplicationFile: ptr.To("local:///dummy.jar"),
+				},
+			}
+			v1beta2.SetSparkApplicationDefaults(app)
+
+			err := k8sClient.Create(ctx, app)
+			Expect(errors.IsInvalid(err)).To(BeTrue(), "expected an Invalid error, got %v", err)
+			Expect(err.Error()).To(ContainSubstring("spec.mode"))
+		})
+	})
+
 	Context("When reconciling a completed SparkApplication", func() {
 		ctx := context.Background()
 		appName := "test"

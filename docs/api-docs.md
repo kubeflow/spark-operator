@@ -1297,7 +1297,7 @@ DeployMode
 </td>
 <td>
 <p>Mode is the deployment mode of the Spark application.
-The client mode is deprecated and will be removed in the next API version.</p>
+Only cluster mode is supported. Client mode has been removed, see <a href="https://github.com/kubeflow/spark-operator/issues/3253">https://github.com/kubeflow/spark-operator/issues/3253</a>.</p>
 </td>
 </tr>
 <tr>
@@ -3447,7 +3447,7 @@ DeployMode
 </td>
 <td>
 <p>Mode is the deployment mode of the Spark application.
-The client mode is deprecated and will be removed in the next API version.</p>
+Only cluster mode is supported. Client mode has been removed, see <a href="https://github.com/kubeflow/spark-operator/issues/3253">https://github.com/kubeflow/spark-operator/issues/3253</a>.</p>
 </td>
 </tr>
 <tr>

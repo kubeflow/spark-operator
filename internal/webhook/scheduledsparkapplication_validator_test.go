@@ -194,33 +194,13 @@ func TestScheduledSparkApplicationValidatorValidateCreate_ConfigMapNames(t *test
 	}
 }
 
-func TestScheduledSparkApplicationValidatorValidateCreate_ClientModeWarning(t *testing.T) {
+func TestScheduledSparkApplicationValidatorValidateCreate_ClientModeRejected(t *testing.T) {
 	validator := NewScheduledSparkApplicationValidator()
 
 	app := newScheduledSparkApplication()
 	app.Spec.Template.Mode = v1beta2.DeployModeClient
 
-	warnings, err := validator.ValidateCreate(context.Background(), app)
-	if err != nil {
-		t.Fatalf("expected success, got %v", err)
-	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], "spec.template.mode: client mode is deprecated") {
-		t.Fatalf("expected client mode deprecation warning, got %v", warnings)
-	}
-}
-
-func TestScheduledSparkApplicationValidatorValidateUpdate_ClientModeWarning(t *testing.T) {
-	validator := NewScheduledSparkApplicationValidator()
-
-	oldApp := newScheduledSparkApplication()
-	newApp := newScheduledSparkApplication()
-	newApp.Spec.Template.Mode = v1beta2.DeployModeClient
-
-	warnings, err := validator.ValidateUpdate(context.Background(), oldApp, newApp)
-	if err != nil {
-		t.Fatalf("expected success, got %v", err)
-	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], "spec.template.mode: client mode is deprecated") {
-		t.Fatalf("expected client mode deprecation warning, got %v", warnings)
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "spec.template.mode") || !strings.Contains(err.Error(), "no longer supported") {
+		t.Fatalf("expected spec.template.mode to be rejected as no longer supported, got %v", err)
 	}
 }

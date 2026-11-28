@@ -119,8 +119,6 @@ func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
 	}
 
 	switch app.Spec.Mode {
-	case v1beta2.DeployModeClient:
-		return s.syncPodGroupInClientMode(app)
 	case v1beta2.DeployModeCluster:
 		return s.syncPodGroupInClusterMode(app)
 	}
@@ -135,23 +133,6 @@ func (s *Scheduler) Cleanup(app *v1beta2.SparkApplication) error {
 		return err
 	}
 	logger.Info("Deleted PodGroup", "name", name, "namespace", namespace)
-	return nil
-}
-
-func (s *Scheduler) syncPodGroupInClientMode(app *v1beta2.SparkApplication) error {
-	// We only care about the executor pods in client mode
-	if _, ok := app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
-		totalResource := util.GetExecutorRequestResource(app)
-
-		if app.Spec.BatchSchedulerOptions != nil && len(app.Spec.BatchSchedulerOptions.Resources) > 0 {
-			totalResource = app.Spec.BatchSchedulerOptions.Resources
-		}
-		if err := s.syncPodGroup(app, 1, totalResource); err == nil {
-			app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey] = getPodGroupName(app)
-		} else {
-			return err
-		}
-	}
 	return nil
 }
 

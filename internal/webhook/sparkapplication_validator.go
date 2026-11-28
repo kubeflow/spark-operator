@@ -67,6 +67,9 @@ func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, app *v1b
 	if err := v.validateName(app.Name); err != nil {
 		return nil, err
 	}
+	if err := validateDeployMode(&app.Spec, field.NewPath("spec")); err != nil {
+		return nil, err
+	}
 	if err := v.validateSpec(ctx, app); err != nil {
 		return nil, err
 	}
@@ -77,7 +80,7 @@ func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, app *v1b
 		}
 	}
 
-	return deprecationWarnings(&app.Spec, field.NewPath("spec")), nil
+	return nil, nil
 }
 
 // ValidateUpdate implements admission.Validator.
@@ -99,6 +102,10 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldApp *
 		return nil, nil
 	}
 
+	if err := validateDeployMode(&newApp.Spec, field.NewPath("spec")); err != nil {
+		return nil, err
+	}
+
 	if err := v.validateSpec(ctx, newApp); err != nil {
 		return nil, err
 	}
@@ -110,7 +117,7 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldApp *
 		}
 	}
 
-	return deprecationWarnings(&newApp.Spec, field.NewPath("spec")), nil
+	return nil, nil
 }
 
 // ValidateDelete implements admission.Validator.
@@ -164,14 +171,12 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 	return nil
 }
 
-// deprecationWarnings returns admission warnings so users see client mode is deprecated at apply time, see https://github.com/kubeflow/spark-operator/issues/3253.
-func deprecationWarnings(spec *v1beta2.SparkApplicationSpec, path *field.Path) admission.Warnings {
-	if spec.Mode != v1beta2.DeployModeClient {
+// validateDeployMode rejects client modes, which are no longer supported, see https://github.com/kubeflow/spark-operator/issues/3253.
+func validateDeployMode(spec *v1beta2.SparkApplicationSpec, path *field.Path) error {
+	if spec.Mode != v1beta2.DeployModeClient && spec.Mode != v1beta2.DeployModeInClusterClient {
 		return nil
 	}
-	return admission.Warnings{
-		fmt.Sprintf("%s: client mode is deprecated and will be removed in the next API version; use cluster mode or SparkConnect instead", path.Child("mode")),
-	}
+	return field.Forbidden(path.Child("mode"), fmt.Sprintf("%q mode is no longer supported; use cluster mode or SparkConnect instead", spec.Mode))
 }
 
 // validateName ensures the SparkApplication metadata.name is a valid DNS-1035 label

@@ -42,32 +42,6 @@ func TestSchedule(t *testing.T) {
 		expectedMode         string
 	}{
 		{
-			name: "Client mode with queue and priority",
-			app: &v1beta2.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "default",
-				},
-				Spec: v1beta2.SparkApplicationSpec{
-					Mode: v1beta2.DeployModeClient,
-					Driver: v1beta2.DriverSpec{
-						SparkPodSpec: v1beta2.SparkPodSpec{},
-					},
-					Executor: v1beta2.ExecutorSpec{
-						Instances:    ptr.To[int32](1),
-						SparkPodSpec: v1beta2.SparkPodSpec{},
-					},
-					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
-						Queue:             ptr.To("high-priority"),
-						PriorityClassName: ptr.To("high"),
-					},
-				},
-			},
-			expectedQueue:        "high-priority",
-			expectedPriorityName: "high",
-			expectedMode:         "client",
-		},
-		{
 			name: "Cluster mode with queue",
 			app: &v1beta2.SparkApplication{
 				ObjectMeta: metav1.ObjectMeta{
@@ -91,70 +65,6 @@ func TestSchedule(t *testing.T) {
 			expectedQueue:        "batch-queue",
 			expectedPriorityName: "",
 			expectedMode:         "cluster",
-		},
-		{
-			name: "Client mode with custom resources",
-			app: &v1beta2.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app-resources",
-					Namespace: "default",
-				},
-				Spec: v1beta2.SparkApplicationSpec{
-					Mode: v1beta2.DeployModeClient,
-					Driver: v1beta2.DriverSpec{
-						SparkPodSpec: v1beta2.SparkPodSpec{
-							Memory: ptr.To("2g"),
-							Cores:  ptr.To[int32](1),
-						},
-					},
-					Executor: v1beta2.ExecutorSpec{
-						Instances: ptr.To[int32](2),
-						SparkPodSpec: v1beta2.SparkPodSpec{
-							Memory: ptr.To("1g"),
-							Cores:  ptr.To[int32](1),
-						},
-					},
-					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
-						Resources: corev1.ResourceList{
-							corev1.ResourceCPU:         resource.MustParse("4"),
-							corev1.ResourceMemory:      resource.MustParse("8Gi"),
-							corev1.ResourceName("gpu"): resource.MustParse("2"),
-						},
-					},
-				},
-			},
-			expectedQueue:        "",
-			expectedPriorityName: "",
-			expectedMode:         "client",
-		},
-		{
-			name: "Client mode with nil BatchSchedulerOptions",
-			app: &v1beta2.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app-client-nil-options",
-					Namespace: "default",
-				},
-				Spec: v1beta2.SparkApplicationSpec{
-					Mode: v1beta2.DeployModeClient,
-					Driver: v1beta2.DriverSpec{
-						SparkPodSpec: v1beta2.SparkPodSpec{
-							Memory: ptr.To("2g"),
-							Cores:  ptr.To[int32](1),
-						},
-					},
-					Executor: v1beta2.ExecutorSpec{
-						Instances: ptr.To[int32](2),
-						SparkPodSpec: v1beta2.SparkPodSpec{
-							Memory: ptr.To("1g"),
-							Cores:  ptr.To[int32](1),
-						},
-					},
-					BatchSchedulerOptions: nil,
-				},
-			},
-			expectedQueue:        "",
-			expectedPriorityName: "",
-			expectedMode:         "client",
 		},
 		{
 			name: "Cluster mode with custom resources",
@@ -255,9 +165,6 @@ func TestSchedule(t *testing.T) {
 			}
 
 			switch tc.expectedMode {
-			case "client":
-				assert.Contains(t, tc.app.Spec.Executor.Annotations, v1beta1.KubeGroupNameAnnotationKey)
-				assert.NotContains(t, tc.app.Spec.Driver.Annotations, v1beta1.KubeGroupNameAnnotationKey)
 			case "cluster":
 				assert.Contains(t, tc.app.Spec.Driver.Annotations, v1beta1.KubeGroupNameAnnotationKey)
 				assert.Contains(t, tc.app.Spec.Executor.Annotations, v1beta1.KubeGroupNameAnnotationKey)
@@ -288,9 +195,6 @@ func TestSchedule(t *testing.T) {
 					driverResources := util.GetDriverRequestResource(tc.app)
 					executorResources := util.GetExecutorRequestResource(tc.app)
 					expectedResources = util.SumResourceList([]corev1.ResourceList{driverResources, executorResources})
-				} else {
-					// For client mode, check that only executor resources are used
-					expectedResources = util.GetExecutorRequestResource(tc.app)
 				}
 
 				for resourceName, expectedQuantity := range expectedResources {
