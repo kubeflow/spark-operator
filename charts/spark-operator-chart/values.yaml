@@ -105,8 +105,6 @@ controller:
     enabled: false
   - name: DefaultTimeToLive
     enabled: false
-  - name: ClientMode
-    enabled: false
 
   # -- The number of old history to retain to allow rollback.
   revisionHistoryLimit: 10
