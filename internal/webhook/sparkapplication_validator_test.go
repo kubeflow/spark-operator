@@ -215,6 +215,54 @@ func TestSparkApplicationValidatorValidateCreate_ResourceQuotaExceeded(t *testin
 	}
 }
 
+func TestSparkApplicationValidatorValidateCreate_MemoryQuota(t *testing.T) {
+	// newSparkApplication asks for 1g plus overhead for the driver and one executor,
+	// which is less than 3Gi in total.
+	testCases := []struct {
+		name         string
+		resourceName corev1.ResourceName
+		hard         string
+		expectError  bool
+	}{
+		{name: "memory quota is enough", resourceName: corev1.ResourceMemory, hard: "4Gi"},
+		{name: "requests.memory quota is enough", resourceName: corev1.ResourceRequestsMemory, hard: "4Gi"},
+		{name: "limits.memory quota is enough", resourceName: corev1.ResourceLimitsMemory, hard: "4Gi"},
+		{name: "memory quota is exceeded", resourceName: corev1.ResourceMemory, hard: "2Gi", expectError: true},
+		{name: "requests.memory quota is exceeded", resourceName: corev1.ResourceRequestsMemory, hard: "2Gi", expectError: true},
+		{name: "limits.memory quota is exceeded", resourceName: corev1.ResourceLimitsMemory, hard: "2Gi", expectError: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			hard := corev1.ResourceList{tc.resourceName: resource.MustParse(tc.hard)}
+			quota := &corev1.ResourceQuota{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "memory",
+					Namespace: "default",
+				},
+				Spec: corev1.ResourceQuotaSpec{
+					Hard: hard,
+				},
+				Status: corev1.ResourceQuotaStatus{
+					Hard: hard,
+					Used: corev1.ResourceList{tc.resourceName: resource.MustParse("0")},
+				},
+			}
+
+			validator := newTestValidator(t, true, quota)
+
+			_, err := validator.ValidateCreate(context.Background(), newSparkApplication())
+			if tc.expectError {
+				if err == nil || !strings.Contains(err.Error(), "failed to validate resource quota") {
+					t.Fatalf("expected resource quota validation error, got %v", err)
+				}
+			} else if err != nil {
+				t.Fatalf("expected quota satisfied, got %v", err)
+			}
+		})
+	}
+}
+
 func TestSparkApplicationValidatorValidateDelete_Success(t *testing.T) {
 	validator := newTestValidator(t, false)
 
