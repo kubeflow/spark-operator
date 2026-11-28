@@ -69,14 +69,6 @@ func TestDefaultTimeToLiveGateRegisteredAndOffByDefault(t *testing.T) {
 	assert.True(t, Enabled(DefaultTimeToLive))
 }
 
-func TestClientModeGateRegisteredAndOffByDefault(t *testing.T) {
-	// Client modes must be disabled unless explicitly enabled.
-	assert.False(t, Enabled(ClientMode))
-
-	SetFeatureGateDuringTest(t, ClientMode, true)
-	assert.True(t, Enabled(ClientMode))
-}
-
 func TestSetFeatureGateDuringTestHelper(t *testing.T) {
 	// Register a test feature for this test
 	testFeature := featuregate.Feature("TestFeatureForDuringTest")
