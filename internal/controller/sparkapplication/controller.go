@@ -52,7 +52,6 @@ import (
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/volcano"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/yunikorn"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
-	"github.com/kubeflow/spark-operator/v2/pkg/features"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -965,9 +964,6 @@ func (r *Reconciler) getSparkApplication(ctx context.Context, key types.Namespac
 func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.SparkApplication) {
 	logger := log.FromContext(ctx)
 	logger.Info("Submitting SparkApplication", "state", app.Status.AppState.State)
-	if app.Spec.Mode == v1beta2.DeployModeClient {
-		logger.Info("Client mode is deprecated and will be removed in the next API version; use cluster mode or SparkConnect instead")
-	}
 
 	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
 	app.Status.SubmissionID = uuid.New().String()
@@ -992,8 +988,8 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 		r.recordSparkApplicationEvent(app)
 	}()
 
-	if (app.Spec.Mode == v1beta2.DeployModeClient || app.Spec.Mode == v1beta2.DeployModeInClusterClient) && !features.Enabled(features.ClientMode) {
-		submitErr = fmt.Errorf("%q mode is disabled; enable the %s feature gate to use it", app.Spec.Mode, features.ClientMode)
+	if app.Spec.Mode == v1beta2.DeployModeClient || app.Spec.Mode == v1beta2.DeployModeInClusterClient {
+		submitErr = fmt.Errorf("%q mode is no longer supported; use cluster mode or SparkConnect instead", app.Spec.Mode)
 		return
 	}
 
