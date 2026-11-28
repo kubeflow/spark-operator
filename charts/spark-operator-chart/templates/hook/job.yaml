@@ -64,7 +64,7 @@ spec:
         {{- $hookSCDefaults := dict "readOnlyRootFilesystem" true "privileged" false "allowPrivilegeEscalation" false "runAsNonRoot" true "capabilities" (dict "drop" (list "ALL")) "seccompProfile" (dict "type" "RuntimeDefault") }}
         {{- $hookSC := deepCopy (.Values.hook.securityContext | default dict) }}
         {{- range $k, $v := $hookSCDefaults }}
-        {{- if not (hasKey $hookSC $k) }}
+        {{- if or (not (hasKey $hookSC $k)) (kindIs "invalid" (get $hookSC $k)) }}
         {{- $_ := set $hookSC $k $v }}
         {{- end }}
         {{- end }}
