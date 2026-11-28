@@ -30,8 +30,10 @@ import (
 )
 
 func TestExtraHandlersDefaultEndpoint(t *testing.T) {
-	for _, endpoint := range []string{"", "/metrics", "metrics", "/%6detrics"} {
-		assert.Nil(t, metrics.ExtraHandlers(endpoint), "endpoint %q", endpoint)
+	for _, endpoint := range []string{"", " ", "/metrics", "metrics", " /metrics ", "/%6detrics"} {
+		handlers, err := metrics.ExtraHandlers(endpoint)
+		require.NoError(t, err, "endpoint %q", endpoint)
+		assert.Nil(t, handlers, "endpoint %q", endpoint)
 	}
 }
 
@@ -40,11 +42,21 @@ func TestExtraHandlersEncodedDefaultEndpoint(t *testing.T) {
 	mux.Handle("/metrics", http.NotFoundHandler())
 
 	// The mux unescapes its patterns, so this spelling would conflict with /metrics.
+	handlers, err := metrics.ExtraHandlers("/%6detrics")
+	require.NoError(t, err)
 	require.NotPanics(t, func() {
-		for path, handler := range metrics.ExtraHandlers("/%6detrics") {
+		for path, handler := range handlers {
 			mux.Handle(path, handler)
 		}
 	})
+}
+
+func TestExtraHandlersInvalidEndpoint(t *testing.T) {
+	for _, endpoint := range []string{"/custom metrics", "/custom\tmetrics", "/custom{metrics", "/{name}/{name}"} {
+		handlers, err := metrics.ExtraHandlers(endpoint)
+		require.ErrorContains(t, err, "invalid metrics endpoint", "endpoint %q", endpoint)
+		assert.Nil(t, handlers, "endpoint %q", endpoint)
+	}
 }
 
 func TestExtraHandlersCustomEndpoint(t *testing.T) {
@@ -52,8 +64,9 @@ func TestExtraHandlersCustomEndpoint(t *testing.T) {
 	require.NoError(t, ctrlmetrics.Registry.Register(counter))
 	t.Cleanup(func() { ctrlmetrics.Registry.Unregister(counter) })
 
-	for _, endpoint := range []string{"/custom-metrics", "custom-metrics"} {
-		handlers := metrics.ExtraHandlers(endpoint)
+	for _, endpoint := range []string{"/custom-metrics", "custom-metrics", "/custom-metrics ", " custom-metrics\n"} {
+		handlers, err := metrics.ExtraHandlers(endpoint)
+		require.NoError(t, err, "endpoint %q", endpoint)
 		require.Len(t, handlers, 1, "endpoint %q", endpoint)
 		handler, ok := handlers["/custom-metrics"]
 		require.True(t, ok, "endpoint %q", endpoint)
