@@ -96,7 +96,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | hook.labels | object | `{}` | Extra labels for the Helm hook Job pod. |
 | hook.annotations | object | `{}` | Extra annotations for the Helm hook Job pod. |
 | controller.replicas | int | `1` | Number of replicas of controller. |
-| controller.featureGates | list | `[{"enabled":false,"name":"PartialRestart"},{"enabled":false,"name":"LoadSparkDefaults"},{"enabled":false,"name":"RestSubmitter"},{"enabled":false,"name":"DefaultTimeToLive"},{"enabled":false,"name":"ClientMode"}]` | Feature gates to enable or disable specific features. |
+| controller.featureGates | list | `[{"enabled":false,"name":"PartialRestart"},{"enabled":false,"name":"LoadSparkDefaults"},{"enabled":false,"name":"RestSubmitter"},{"enabled":false,"name":"DefaultTimeToLive"}]` | Feature gates to enable or disable specific features. |
 | controller.revisionHistoryLimit | int | `10` | The number of old history to retain to allow rollback. |
 | controller.leaderElection.enable | bool | `true` | Specifies whether to enable leader election for controller. |
 | controller.leaderElection.leaseDuration | string | `"15s"` | Leader election lease duration. |
