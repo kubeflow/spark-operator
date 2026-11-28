@@ -147,3 +147,9 @@ For contributing to Spark Operator, please refer to [Contributor Guide](CONTRIBU
 ## Adopters
 
 Check out [adopters of Spark Operator](ADOPTERS.md).
+
+## Contributors
+
+<a href="https://github.com/kubeflow/spark-operator/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=kubeflow/spark-operator" alt="Contributors" />
+</a>
