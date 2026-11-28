@@ -141,22 +141,22 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
           content: --zap-log-level=debug
   
-  - it: Should pass default feature gates to the webhook with ClientMode disabled
+  - it: Should pass default feature gates to the webhook
     asserts:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
-          content: --feature-gates=PartialRestart=false,LoadSparkDefaults=false,RestSubmitter=false,DefaultTimeToLive=false,ClientMode=false
+          content: --feature-gates=PartialRestart=false,LoadSparkDefaults=false,RestSubmitter=false,DefaultTimeToLive=false
 
   - it: Should pass `controller.featureGates` to the webhook
     set:
       controller:
         featureGates:
-          - name: ClientMode
+          - name: PartialRestart
             enabled: true
     asserts:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
-          content: --feature-gates=ClientMode=true
+          content: --feature-gates=PartialRestart=true
 
   - it: Should contain `--namespaces` arg if `spark.jobNamespaces` is set
     set:
