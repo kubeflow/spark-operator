@@ -52,6 +52,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/mutatingwebhookconfiguration"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/validatingwebhookconfiguration"
+	"github.com/kubeflow/spark-operator/v2/internal/metrics"
 	"github.com/kubeflow/spark-operator/v2/internal/webhook"
 	"github.com/kubeflow/spark-operator/v2/pkg/certificate"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -211,6 +212,11 @@ func start() {
 		logger.Error(err, "Failed to set up TLS")
 		os.Exit(1)
 	}
+	extraMetricsHandlers, err := metrics.ExtraHandlers(metricsEndpoint)
+	if err != nil {
+		logger.Error(err, "Failed to set up metrics endpoint")
+		os.Exit(1)
+	}
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: operatorscheme.WebhookScheme,
 		Cache:  newCacheOptions(),
@@ -219,6 +225,7 @@ func start() {
 			BindAddress:   metricsBindAddress,
 			SecureServing: secureMetrics,
 			TLSOpts:       tlsOptions,
+			ExtraHandlers: extraMetricsHandlers,
 		},
 		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
 			Port:     webhookPort,
