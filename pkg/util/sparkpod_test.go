@@ -347,3 +347,18 @@ var _ = Describe("GetSparkExecutorID", func() {
 		})
 	})
 })
+
+var _ = Describe("ParseExecutorIDFromPodName", func() {
+	DescribeTable("extracts trailing digits",
+		func(name string, expected int) {
+			Expect(util.ParseExecutorIDFromPodName(name)).To(Equal(expected))
+		},
+		Entry("real Spark pod name with hash and hyphen", "cc-spark-ops-test-7bc5a69e8c8c89fd-exec-12345", 12345),
+		Entry("test-style pod name without separator", "test-app-exec1", 1),
+		Entry("single digit trailing", "anything-9", 9),
+		Entry("multi-digit trailing", "anything-987654", 987654),
+		Entry("empty string", "", 0),
+		Entry("no trailing digits", "driver-pod", 0),
+		Entry("digits in the middle only", "exec-42-driver", 0),
+	)
+})
