@@ -543,6 +543,12 @@ func IsDynamicAllocationEnabled(app *v1beta2.SparkApplication) bool {
 	return dynamicAllocationConfVal
 }
 
+// IsJVMApp returns whether the application runs on the JVM, that is, whether its type is Java or Scala.
+// Spark applies a smaller default memory overhead factor to JVM applications than to Python and R ones.
+func IsJVMApp(app *v1beta2.SparkApplication) bool {
+	return app.Spec.Type == v1beta2.SparkApplicationTypeJava || app.Spec.Type == v1beta2.SparkApplicationTypeScala
+}
+
 // ApplyDefaultDriverServiceAccount returns a SparkApplication whose driver service account is
 // set to defaultServiceAccount when neither the application nor its driver pod template
 // specifies one. The original application is returned unchanged when no fallback is
