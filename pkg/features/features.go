@@ -58,13 +58,6 @@ const (
 	// owner: @dineshkumar181094
 	// alpha: v2.6.0
 	DefaultTimeToLive featuregate.Feature = "DefaultTimeToLive"
-
-	// ClientMode allows SparkApplications with spec.mode set to client or in-cluster-client.
-	// Disabled by default. Client modes are deprecated, see https://github.com/kubeflow/spark-operator/issues/3253.
-	//
-	// owner: @vikas-saxena02
-	// deprecated: v2.6.0
-	ClientMode featuregate.Feature = "ClientMode"
 )
 
 // To add a new feature gate, follow these steps:
@@ -109,8 +102,6 @@ var defaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	RestSubmitter: {Default: false, PreRelease: featuregate.Alpha},
 
 	DefaultTimeToLive: {Default: false, PreRelease: featuregate.Alpha},
-
-	ClientMode: {Default: false, PreRelease: featuregate.Deprecated},
 }
 
 // SetFeatureGateDuringTest sets the specified feature gate to the specified value during a test.
