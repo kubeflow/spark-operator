@@ -41,7 +41,6 @@ permissions:
 
 env:
   IMAGE_REGISTRY: ghcr.io
-  KUBECTL_VERSION: 1.33.2
 
 jobs:
   build:
@@ -68,6 +67,9 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           persist-credentials: false
+
+      - name: Set kubectl version
+        run: echo "KUBECTL_VERSION=$(cat .github/kubectl-version.txt)" >> "$GITHUB_ENV"
 
       - name: Check that a versioned publication matches its tag
         if: inputs.publish && inputs.version != 'latest'
